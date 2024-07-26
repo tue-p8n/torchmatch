@@ -1,0 +1,349 @@
+name: Release
+
+# Per-variant wheels are built inside manylinux / CUDA containers (NOT
+# inside `nix develop`). The Nix derivation at packages.docs is for the
+# documentation site; PyPI-style wheels follow the cibuildwheel-style
+# manylinux pipeline so they're portable across pip/conda installs.
+#
+# Pipeline:
+#   1. build-pypi-wheel: builds a stable ABI CPU wheel (cp313-abi3-manylinux)
+#      for PyPI. Compiled against PyTorch's stable LibTorch ABI (≥2.10) and
+#      Python's limited ABI (≥3.13), so the wheel works with any future torch
+#      and Python version without recompilation. An sdist is also produced as
+#      a fallback for non-x86_64 platforms (JIT-compiles at first import).
+#   2. build-cpu-wheel / build-cuda-wheel: per-variant matrix builds of
+#      pre-compiled wheels (TORCHMATCH_BUILD_* flags) with +<variant> local
+#      version identifiers. auditwheel repairs manylinux compliance while
+#      excluding libtorch / libcuda symbols.
+#   3. publish-release: collects all artifacts, attaches to GitHub Release.
+#   4. publish-pypi: publishes the stable ABI wheel and sdist to PyPI (pre-built
+#      +variant wheels are rejected by PyPI due to local version identifiers).
+#   5. update-index: regenerates docs/simple/<variant>/torchmatch/index.html
+#      for pre-built wheels and commits to main; docs.yml redeploys Pages.
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag name to (re-)build (e.g. v1.0.1)"
+        required: true
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  TAG_NAME: ${{ github.event.inputs.tag || github.ref_name }}
+
+  # Default arch list covers V100 through Blackwell. Hosts on
+  # later-generation GPUs get JIT-compiled PTX from the highest baked SM.
+  TORCH_CUDA_ARCH_LIST_CU12: "7.0;7.5;8.0;8.6;8.9;9.0"
+  TORCH_CUDA_ARCH_LIST_CU13: "7.5;8.0;8.6;8.9;9.0;10.0;12.0"
+
+  # Auditwheel must NOT bundle libtorch/libcuda; they are provided by
+  # the user's torch install. The CUDA-12 and CUDA-13 lines have
+  # different SONAMEs, so each variant exports its own exclude list.
+  AUDITWHEEL_EXCLUDE_COMMON: >-
+    --exclude libtorch.so
+    --exclude libtorch_cpu.so
+    --exclude libtorch_cuda.so
+    --exclude libtorch_python.so
+    --exclude libc10.so
+    --exclude libc10_cuda.so
+    --exclude libcuda.so.1
+    --exclude libnvToolsExt.so.1
+
+  AUDITWHEEL_EXCLUDE_CU12: >-
+    --exclude libcudart.so.12
+    --exclude libcublas.so.12
+    --exclude libcublasLt.so.12
+    --exclude libnvJitLink.so.12
+
+  AUDITWHEEL_EXCLUDE_CU13: >-
+    --exclude libcudart.so.13
+    --exclude libcublas.so.13
+    --exclude libcublasLt.so.13
+    --exclude libnvJitLink.so.13
+
+jobs:
+  build-pypi-wheel:
+    # Stable ABI CPU wheel for PyPI: compiled against PyTorch's stable
+    # LibTorch ABI (TORCH_TARGET_VERSION ≥ 2.10) and Python's limited ABI
+    # (Py_LIMITED_API 3.13). Works with any torch ≥ 2.10 and Python ≥ 3.13
+    # without recompilation. An sdist is built alongside as a source fallback.
+    runs-on: ubuntu-latest
+    container:
+      image: quay.io/pypa/manylinux_2_28_x86_64
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG_NAME }}
+
+      - name: Install uv
+        run: curl -LsSf https://astral.sh/uv/install.sh | sh
+
+      - name: Install build dependencies
+        run: |
+          . "$HOME/.local/bin/env"
+          uv venv --python 3.13 .venv
+          . .venv/bin/activate
+          # Install torch from the PyTorch CPU index, then install build tools
+          # from PyPI separately so uv doesn't resolve setuptools from the
+          # pytorch index (which pins setuptools==70.2.0, predating PEP 639).
+          uv pip install --extra-index-url https://download.pytorch.org/whl/cpu 'torch>=2.11'
+          uv pip install 'setuptools>=77' wheel auditwheel
+
+      - name: Build stable ABI wheel and sdist
+        env:
+          TORCHMATCH_BUILD_CPU: "1"
+          TORCHMATCH_BUILD_TRANSPORT: "1"
+          TORCHMATCH_BUILD_STABLE_ABI: "1"
+        run: |
+          . "$HOME/.local/bin/env"
+          . .venv/bin/activate
+          uv build --out-dir dist/
+
+          mkdir -p wheelhouse
+          # shellcheck disable=SC2086
+          auditwheel repair dist/torchmatch-*.whl ${AUDITWHEEL_EXCLUDE_COMMON} -w wheelhouse/
+          ls wheelhouse/
+
+      - name: Verify wheel tag is cp313-abi3
+        run: |
+          wheel=$(ls wheelhouse/torchmatch-*.whl)
+          if ! echo "$wheel" | grep -q 'cp313-abi3'; then
+            echo "ERROR: expected cp313-abi3 wheel, got: $wheel"; exit 1
+          fi
+          echo "Wheel: $wheel"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wheel-pypi
+          path: |
+            wheelhouse/*.whl
+            dist/*.tar.gz
+          if-no-files-found: error
+
+  build-cpu-wheel:
+    runs-on: ubuntu-latest
+    container:
+      image: quay.io/pypa/manylinux_2_28_x86_64
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG_NAME }}
+
+      - name: Install uv
+        run: curl -LsSf https://astral.sh/uv/install.sh | sh
+
+      - name: Install build dependencies
+        run: |
+          . "$HOME/.local/bin/env"
+          uv venv --python 3.13 .venv
+          . .venv/bin/activate
+          uv pip install --extra-index-url https://download.pytorch.org/whl/cpu 'torch>=2.11'
+          uv pip install 'setuptools>=77' wheel auditwheel
+
+      - name: Inject local version (+cpu)
+        run: sed -i 's/^version = "\(.*\)"$/version = "\1+cpu"/' pyproject.toml
+
+      - name: Build wheel (cpu)
+        env:
+          TORCHMATCH_BUILD_CPU: "1"
+          TORCHMATCH_BUILD_TRANSPORT: "1"
+        run: |
+          . "$HOME/.local/bin/env"
+          . .venv/bin/activate
+          uv build --wheel --out-dir dist/
+
+          mkdir -p wheelhouse
+          # shellcheck disable=SC2086
+          auditwheel repair dist/torchmatch-*.whl ${AUDITWHEEL_EXCLUDE_COMMON} -w wheelhouse/
+          ls wheelhouse/
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wheel-cpu
+          path: wheelhouse/*.whl
+          if-no-files-found: error
+
+  build-cuda-wheel:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - variant: cu126
+            container: nvidia/cuda:12.6.3-cudnn-devel-ubuntu22.04
+            torch_index: cu126
+            torch_spec: "torch>=2.11"
+            arch_list_var: TORCH_CUDA_ARCH_LIST_CU12
+            cuda_major: "12"
+          - variant: cu128
+            container: nvidia/cuda:12.8.1-cudnn-devel-ubuntu22.04
+            torch_index: cu128
+            torch_spec: "torch>=2.11,<2.12"
+            arch_list_var: TORCH_CUDA_ARCH_LIST_CU12
+            cuda_major: "12"
+          - variant: cu130
+            container: nvidia/cuda:13.0.0-cudnn-devel-ubuntu24.04
+            torch_index: cu130
+            torch_spec: "torch>=2.12"
+            arch_list_var: TORCH_CUDA_ARCH_LIST_CU13
+            cuda_major: "13"
+          - variant: cu132
+            container: nvidia/cuda:13.2.0-cudnn-devel-ubuntu24.04
+            torch_index: cu132
+            torch_spec: "torch>=2.12"
+            arch_list_var: TORCH_CUDA_ARCH_LIST_CU13
+            cuda_major: "13"
+    container:
+      image: ${{ matrix.container }}
+    steps:
+      - name: Install build prerequisites in the CUDA container
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends \
+            curl ca-certificates git build-essential
+          # uv supplies Python 3.13 inside the Ubuntu base image without
+          # adding the deadsnakes PPA.
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          . "$HOME/.local/bin/env"
+          uv --version
+
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG_NAME }}
+
+      - name: Install build dependencies
+        run: |
+          . "$HOME/.local/bin/env"
+          uv venv --python 3.13 .venv
+          . .venv/bin/activate
+          uv pip install \
+            --extra-index-url 'https://download.pytorch.org/whl/${{ matrix.torch_index }}' \
+            '${{ matrix.torch_spec }}'
+          uv pip install 'setuptools>=77' wheel auditwheel
+
+      - name: Inject local version (+${{ matrix.variant }})
+        run: sed -i 's/^version = "\(.*\)"$/version = "\1+${{ matrix.variant }}"/' pyproject.toml
+
+      - name: Build wheel (${{ matrix.variant }})
+        env:
+          CUDA_HOME: /usr/local/cuda
+          TORCH_CUDA_ARCH_LIST: ${{ env[matrix.arch_list_var] }}
+          TORCHMATCH_BUILD_CPU: "1"
+          TORCHMATCH_BUILD_CUDA: "1"
+          TORCHMATCH_BUILD_TRANSPORT: "1"
+        run: |
+          . "$HOME/.local/bin/env"
+          . .venv/bin/activate
+          uv build --wheel --out-dir dist/
+
+          mkdir -p wheelhouse
+
+          if [ "${{ matrix.cuda_major }}" = "13" ]; then
+            EXCLUDES="${AUDITWHEEL_EXCLUDE_COMMON} ${AUDITWHEEL_EXCLUDE_CU13}"
+          else
+            EXCLUDES="${AUDITWHEEL_EXCLUDE_COMMON} ${AUDITWHEEL_EXCLUDE_CU12}"
+          fi
+          # shellcheck disable=SC2086
+          auditwheel repair dist/torchmatch-*.whl ${EXCLUDES} -w wheelhouse/
+          ls wheelhouse/
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wheel-${{ matrix.variant }}
+          path: wheelhouse/*.whl
+          if-no-files-found: error
+
+  publish-release:
+    needs: [build-pypi-wheel, build-cpu-wheel, build-cuda-wheel]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG_NAME }}
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist/
+          merge-multiple: true
+
+      - name: List artifacts
+        run: ls -la dist/
+
+      - name: Create / update GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.TAG_NAME }}
+          files: |
+            dist/*.whl
+            dist/*.tar.gz
+          fail_on_unmatched_files: true
+          generate_release_notes: true
+
+  publish-pypi:
+    needs: publish-release
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: wheel-pypi
+          path: dist/
+
+      - name: Publish stable ABI wheel and sdist to PyPI
+        # Publishes:
+        #   torchmatch-*.whl       stable ABI CPU wheel (cp313-abi3-manylinux)
+        #   torchmatch-*.tar.gz    sdist (C++ sources; JIT fallback for non-x86_64)
+        # Pre-built +variant wheels are NOT published here; PyPI rejects
+        # local version identifiers. They live on the custom GitHub Pages index.
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: dist/
+
+  update-index:
+    needs: publish-release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist/
+          merge-multiple: true
+
+      - name: Regenerate simple index
+        run: |
+          python scripts/build_pypi_index.py \
+            --tag '${{ env.TAG_NAME }}' \
+            --wheels dist/ \
+            --output docs/simple/ \
+            --repo '${{ github.repository }}'
+
+      - name: Commit index updates
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/simple/
+          if git diff --quiet --staged; then
+            echo "No index changes to commit."
+            exit 0
+          fi
+          git commit -m "chore(release): publish simple index for ${TAG_NAME}"
+          git push origin main

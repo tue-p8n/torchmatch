@@ -1,0 +1,219 @@
+[build-system]
+requires = ["setuptools>=77", "wheel", "torch>=2.11"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "torchmatch"
+description = "Assignment and transport solvers for PyTorch."
+readme = "README.md"
+version = "1.0.1"
+requires-python = ">=3.13"
+keywords = [
+  "pytorch",
+  "linear assignment problem",
+  "lap",
+  "lapjv",
+  "hungarian algorithm",
+  "bipartite matching",
+  "optimal transport",
+  "sinkhorn",
+  "earth mover distance",
+  "cuda",
+]
+authors = [{ name = "Kurt Stolle", email = "kurt@computer.org" }]
+license = "MIT"
+license-files = ["LICENSE"]
+classifiers = [
+  "Development Status :: 5 - Production/Stable",
+  "Intended Audience :: Developers",
+  "Intended Audience :: Science/Research",
+  "Topic :: Scientific/Engineering :: Artificial Intelligence",
+  "Topic :: Scientific/Engineering :: Mathematics",
+  "Programming Language :: Python",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.13",
+  "Operating System :: POSIX :: Linux",
+]
+dependencies = ["torch"]
+
+[project.optional-dependencies]
+cpu = ["torch>=2.11"]
+cu126 = ["torch>=2.11"]
+cu128 = ["torch>=2.11"]
+cu130 = ["torch>=2.12"]
+cu132 = ["torch>=2.12"]
+
+[dependency-groups]
+dev = [
+  "pytest>=8.4.2",
+  "pytest-benchmark>=5.1.0",
+  "pytest-timeout>=2.4.0",
+  "ruff>=0.9.0",
+  "scipy>=1.10",
+]
+bench = ["py-cpuinfo>=9.0.0"]
+notebooks = [
+  "matplotlib>=3.9",
+  "jupyter>=1.1",
+  "nbconvert>=7.16",
+  "jupytext>=1.16",
+  "ipykernel>=6.29",
+]
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[[tool.uv.index]]
+name = "pytorch-cu126"
+url = "https://download.pytorch.org/whl/cu126"
+explicit = true
+
+[[tool.uv.index]]
+name = "pytorch-cu128"
+url = "https://download.pytorch.org/whl/cu128"
+explicit = true
+
+[[tool.uv.index]]
+name = "pytorch-cu130"
+url = "https://download.pytorch.org/whl/cu130"
+explicit = true
+
+[[tool.uv.index]]
+name = "pytorch-cu132"
+url = "https://download.pytorch.org/whl/cu132"
+explicit = true
+
+[tool.uv.sources]
+torch = [
+  { index = "pytorch-cpu", extra = "cpu" },
+  { index = "pytorch-cu126", extra = "cu126" },
+  { index = "pytorch-cu128", extra = "cu128" },
+  { index = "pytorch-cu130", extra = "cu130" },
+  { index = "pytorch-cu132", extra = "cu132" },
+]
+
+[tool.uv]
+# [build-system].requires uses a separate isolated env that does NOT see
+# [tool.uv.sources], so pip would pull torch from PyPI's default index
+# (which bundles CUDA 13 in current releases) and produce a .so whose
+# torch ABI / CUDA version does not match the venv torch. Disable build
+# isolation for torchmatch so the build reuses the venv's pinned torch
+# (cu126 / cu128 / cu130, picked by the user-selected extra).
+no-build-isolation-package = ["torchmatch"]
+
+conflicts = [
+  [
+    { extra = "cpu" },
+    { extra = "cu126" },
+    { extra = "cu128" },
+    { extra = "cu130" },
+    { extra = "cu132" },
+  ],
+]
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.packages.find]
+where = ["sources"]
+
+[tool.setuptools.package-dir]
+"" = "sources"
+
+[tool.setuptools.package-data]
+"torchmatch" = [
+  "py.typed",
+  "**/*.pyi",
+  "assignment/cuda/*.cpp",
+  "assignment/cuda/*.cu",
+  "assignment/cuda/*.cuh",
+  "assignment/cpu/*.cpp",
+  "assignment/cpu/*.h",
+  "transport/matrix/cpu/*.cpp",
+  "transport/matrix/cpu/*.h",
+  "transport/matrix/cpu/exact/*.cpp",
+  "transport/matrix/cpu/exact/*.h",
+  "transport/matrix/cuda/*.cpp",
+  "transport/matrix/cuda/*.cu",
+  "transport/matrix/cuda/*.cuh",
+]
+
+[tool.ruff]
+target-version = 'py313'
+line-length = 88
+extend-exclude = ["notebooks/"]
+
+[tool.ruff.lint]
+select = [
+  "ARG",
+  "B",
+  "C",
+  "C4",
+  "D",
+  "E",
+  "EM",
+  "F",
+  "FURB",
+  "G",
+  "I",
+  "ICN",
+  "N",
+  "NPY",
+  "PERF",
+  "PGH",
+  "PIE",
+  "PL",
+  "PT",
+  "PTH",
+  "PYI",
+  "RUF",
+  "RET",
+  "SIM",
+  "T20",
+  "TRY",
+  "UP",
+]
+ignore = ["PLR2004", "PLW2901", "D212", "D203", "D107"]
+
+[tool.ruff.lint.per-file-ignores]
+# pytest.mark.parametrize functions take one parameter per fixture, so
+# PLR0913's 5-argument cap fires on every multi-parametrize test.
+"tests/*" = ["D", "T", "PLC0415", "PLR0913", "PLR1714", "RUF002"]
+# Utility scripts: print is expected (CLI tools), docstrings are optional,
+# RUF002 ambiguous-unicode rules are docstring-only false positives.
+"scripts/*" = ["D", "T", "RUF002", "C901", "PERF401"]
+# Relaxed style rules for streaming-kernel code (Triton kernels; style differs
+# from the rest of the project). Correctness rules (F, B) are kept.
+"sources/torchmatch/transport/samples/**" = [
+  "D",
+  "E501",
+  "F401",
+  "F841",
+  "I001",
+  "N",
+  "C",
+  "ARG",
+  "EM",
+  "FURB",
+  "G",
+  "PERF",
+  "PIE",
+  "PL",
+  "PT",
+  "PGH",
+  "RET",
+  "RUF",
+  "SIM",
+  "TRY",
+  "UP",
+  "PYI",
+]
+
+[tool.ruff.format]
+docstring-code-format = true
+docstring-code-line-length = "dynamic"
+
+[tool.pytest.ini_options]
+timeout = 10

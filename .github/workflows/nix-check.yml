@@ -1,0 +1,36 @@
+name: Nix check
+
+# PR / push validation that the flake's dev shells still evaluate.
+# The torchmatch wheel build runs in release.yml (manylinux + CUDA
+# containers); the docs site builds in docs.yml (bun). Neither uses
+# `nix build`, so this workflow only catches drift between the flake
+# and nixpkgs / nixpkgs-cuda.
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  flake-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: DeterminateSystems/nix-installer-action@main
+        with:
+          determinate: true
+
+      - name: nix flake check
+        run: nix flake check --no-write-lock-file --all-systems
+
+      - name: Smoke-build the CPU package
+        # CUDA variants need a CUDA-capable builder; the CPU variant is
+        # the only one we can build on stock GitHub runners. This catches
+        # uv2nix overlay drift that `nix flake check` only evaluates.
+        run: nix build .#torchmatch-cpu --no-write-lock-file

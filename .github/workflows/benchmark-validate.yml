@@ -1,0 +1,30 @@
+name: Validate benchmark contributions
+
+# Runs on every PR that touches benchmarks/results/. Confirms the
+# JSON shape, the slug ↔ machine.json consistency, the canonical
+# filename pattern, and that no host-identifying fields slipped past
+# the scrubber.
+
+on:
+  pull_request:
+    paths:
+      - benchmarks/results/**
+  workflow_dispatch:
+
+# Cancel superseded in-progress runs on the same PR branch.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Validate benchmark results
+        run: python scripts/benchmark_validate.py benchmarks/results

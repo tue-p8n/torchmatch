@@ -1,0 +1,67 @@
+name: Deploy docs
+
+# Builds the Nuxt 4 docs site under docs/site/ and deploys to GitHub
+# Pages.
+#
+# Triggers:
+#   - push to main: production deploy.
+#   - workflow_dispatch: manual rebuild.
+
+on:
+  push:
+    branches: [main, master]
+    paths:
+      - docs/site/**
+      - benchmarks/results/**
+      - scripts/benchmark_aggregate.py
+      - .github/workflows/docs.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@v17
+        with:
+          extra-conf: |
+            access-tokens = github.com=${{ secrets.DOCYARD_PAT }}
+
+      - name: Build docs site
+        # nix run .#docs-build runs scripts/benchmark_aggregate.py itself
+        # (wired as docyard.site.preHook) and resolves DOCYARD_THEME_PATH
+        # from the docyard flake input before building -- bypassing this
+        # (the previous approach: bun install + bun run build directly in
+        # docs/site) silently built the Nuxt app with an EMPTY `extends`
+        # array, since DOCYARD_THEME_PATH was never set, producing a site
+        # with no docyard theme/components at all.
+        env:
+          NUXT_PUBLIC_SITE_URL: https://torchmatch.khws.io
+          GITHUB_SHA: ${{ github.sha }}
+          NODE_OPTIONS: --max-old-space-size=4096
+        run: nix run .#docs-build
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs/site/.output/public
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - id: deploy
+        uses: actions/deploy-pages@v4
