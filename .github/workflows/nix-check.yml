@@ -25,6 +25,8 @@ jobs:
       - uses: DeterminateSystems/nix-installer-action@main
         with:
           determinate: true
+          extra-conf: |
+            access-tokens = github.com=${{ secrets.DOCYARD_PAT }}
 
       - name: nix flake check
         run: nix flake check --no-write-lock-file --all-systems
