@@ -97,10 +97,10 @@
               variants.cu132
             else if lib.hasPrefix "13." v then
               variants.cu130
-            else if v == "12.8" then
-              variants.cu128
             else if v == "12.6" then
               variants.cu126
+            else if lib.hasPrefix "12." v then
+              variants.cu128
             else
               throw "torchmatchWithCuda: no wheel for CUDA ${v}. Supported: 12.6, 12.8, 13.x";
         in
@@ -247,10 +247,10 @@
               variantsFromFinal.cu132
             else if lib.hasPrefix "13." cudaVersion then
               variantsFromFinal.cu130
-            else if cudaVersion == "12.8" then
-              variantsFromFinal.cu128
             else if cudaVersion == "12.6" then
               variantsFromFinal.cu126
+            else if lib.hasPrefix "12." cudaVersion then
+              variantsFromFinal.cu128
             else
               throw "torchmatch overlay: no wheel for CUDA ${cudaVersion}. Supported: 12.6, 12.8, 13.x";
         in
