@@ -13,7 +13,7 @@ scheduling through to the set-prediction losses that train modern vision transfo
 
 The problem was formalised in the context of **personnel assignment**: given a set of
 workers and a set of jobs, and a productivity rating for each worker-job pair, find the
-assignment that maximises total productivity. Kuhn's 1955 paper \[Kuhn1955\] coined
+assignment that maximises total productivity. Kuhn's 1955 paper @Kuhn1955 coined
 the "Hungarian method" motivated precisely by this framing. The same structure appeared
 under the name **transportation problem** in the linear programming literature of the same
 decade (Hitchcock 1941, Koopmans 1947) — matching supply nodes to demand nodes at minimum
@@ -39,11 +39,11 @@ learned affinity scores. Gate entries whose pairs are geometrically infeasible a
 `+inf`. The assignment is solved per-frame; with a batch dimension over frames it maps
 directly onto `jonker_dense_batch`.
 
-SORT \[Bewley2016\] established this template in 2016: linear motion prediction via a Kalman
-filter, IoU cost, Hungarian assignment. DeepSORT \[Wojke2017\] added appearance features to
-the cost. ByteTrack \[Zhang2022\] extended the idea to also process low-confidence
-detections through a second assignment pass. BoT-SORT \[Aharon2022\] and OC-SORT
-\[Cao2023\] refined the motion model and re-identification respectively, but the assignment
+SORT @Bewley2016 established this template in 2016: linear motion prediction via a Kalman
+filter, IoU cost, Hungarian assignment. DeepSORT @Wojke2017 added appearance features to
+the cost. ByteTrack @Zhang2022 extended the idea to also process low-confidence
+detections through a second assignment pass. BoT-SORT @Aharon2022 and OC-SORT
+@Cao2023 refined the motion model and re-identification respectively, but the assignment
 step remains structurally unchanged across the entire family.
 
 The `_unpacked` op variants — `jonker_dense_batch_unpacked`,
@@ -59,9 +59,9 @@ training loss requires matching each ground-truth object to exactly one predicti
 evaluating the per-pair L1, GIoU, and classification terms. The matching must be globally
 optimal — greedy or random assignment produces a worse training signal.
 
-DETR \[Carion2020\] introduced this formulation and placed the Hungarian matcher explicitly
+DETR @Carion2020 introduced this formulation and placed the Hungarian matcher explicitly
 on the critical path. Subsequent work in the DETR lineage — Conditional DETR, DN-DETR,
-DINO-DETR, MaskFormer \[Cheng2021\], Mask2Former, RT-DETR — all preserve the Hungarian
+DINO-DETR, MaskFormer @Cheng2021, Mask2Former, RT-DETR — all preserve the Hungarian
 matching step, with variations in how the cost components are weighted or whether matching
 is applied across multiple decoder layers. The matcher runs at training time, once per image
 per gradient step; its latency directly affects training throughput at large batch sizes.
@@ -119,25 +119,5 @@ in reading comprehension, or aligning predicted parses to gold parses. When the 
 sequences are already segmented into labelled spans, a LAP on a span-overlap cost matrix
 gives the optimal alignment.
 
-## References
-
-- \[Kuhn1955\] Kuhn, H. W. (1955). *The Hungarian method for the assignment problem*.
-  **Naval Research Logistics Quarterly**, 2(1–2): 83–97.
-- \[Bewley2016\] Bewley, A.; Ge, Z.; Ott, L.; Ramos, F.; Upcroft, B. (2016). *Simple online
-  and realtime tracking*. **ICIP**, pp. 3464–3468.
-- \[Wojke2017\] Wojke, N.; Bewley, A.; Paulus, D. (2017). *Simple online and realtime
-  tracking with a deep association metric*. **ICIP**, pp. 3645–3649.
-- \[Zhang2022\] Zhang, Y.; Sun, P.; Jiang, Y.; Yu, D.; Weng, F.; Yuan, Z.; Luo, P.; Liu, W.;
-  Wang, X. (2022). *ByteTrack: Multi-object tracking by associating every detection box*.
-  **ECCV**, LNCS 13682: 1–21.
-- \[Aharon2022\] Aharon, N.; Orfaig, R.; Bobrovsky, B.-Z. (2022). *BoT-SORT: Robust
-  associations multi-pedestrian tracking*. arXiv:2206.14651.
-- \[Cao2023\] Cao, J.; Pang, J.; Weng, X.; Khirodkar, R.; Kitani, K. (2023). *Observation-
-  centric SORT: Rethinking SORT for robust multi-object tracking*. **CVPR**, pp. 9686–9696.
-- \[Carion2020\] Carion, N.; Massa, F.; Synnaeve, G.; Usunier, N.; Kirillov, A.;
-  Zagoruyko, S. (2020). *End-to-end object detection with transformers*. **ECCV**, LNCS
-  12346: 213–229.
-- \[Cheng2021\] Cheng, B.; Schwing, A.; Kirillov, A. (2021). *Per-pixel classification is
-  not all you need for semantic segmentation*. **NeurIPS 34**: 17864–17875.
-
-BibTeX entries are in [`references.bib`](/references.bib).
+::Bibliography
+::

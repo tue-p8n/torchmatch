@@ -1,13 +1,18 @@
 % torchmatch bibliography. Single source of truth for all references in
-% the documentation. Every [Key] cited in the docs corresponds to an
-% entry below; the unified bibliography page (/references) renders
+% the documentation. Every citation key used in the docs corresponds to
+% an entry below; the unified bibliography page (/references) renders
 % these entries in a human-readable form.
 %
-% Convention for new citations:
+% Convention for new citations, using docyard's citation system:
 %   1. Add the entry here first.
-%   2. Cite it in prose using the [Key] form, with brackets escaped
-%      (\[Key\]) so markdown does not treat it as a reference-style link.
-%   3. List the cited key under "References" at the bottom of the page.
+%   2. Cite it in prose with the Pandoc/Quarto `@Key` syntax (or
+%      `[@KeyA; @KeyB]` for multiple keys). This is sugar over the
+%      `:docyard-cite{bib="Key"}` MDC component, which can also be used
+%      directly. Do not use a plain `:Cite{...}` tag — that component
+%      does not exist and silently fails to render.
+%   3. Add `::Bibliography` / `::` at the bottom of the page to render
+%      the bibliography for every key cited on that page (or
+%      `::FullBibliography` for the site-wide list on /references).
 %   4. Update /references if a new entry is introduced.
 %
 % Each entry below carries a short annotation in a comment block above
@@ -526,4 +531,297 @@
   doi = {10.1214/13-AOS1140},
   note = {Proves that MMD with energy-distance kernels equals an OT-based
           statistic; the connection between Sinkhorn divergence, OT, and MMD.},
+}
+
+
+% ── Assignment applications (blog) ──────────────────────────────────────────
+
+% SORT: linear motion prediction via a Kalman filter, IoU cost matrix,
+% Hungarian assignment. Established the template that the later
+% tracker family below all extend.
+@inproceedings{Bewley2016,
+  author = {Bewley, Alex and Ge, Zongyuan and Ott, Lionel and Ramos, Fabio
+            and Upcroft, Ben},
+  title = {Simple online and realtime tracking},
+  booktitle = {IEEE International Conference on Image Processing (ICIP)},
+  year = {2016},
+  pages = {3464--3468},
+  doi = {10.1109/ICIP.2016.7533003},
+  note = {SORT; Kalman-filter motion prediction plus IoU cost and Hungarian
+          assignment. Establishes the tracking-by-detection template extended
+          by [Wojke2017], [Zhang2022], [Aharon2022], and [Cao2023].},
+}
+
+
+% DeepSORT: adds an appearance (re-identification) embedding distance
+% to the SORT cost matrix.
+@inproceedings{Wojke2017,
+  author = {Wojke, Nicolai and Bewley, Alex and Paulus, Dietrich},
+  title = {Simple online and realtime tracking with a deep association metric},
+  booktitle = {IEEE International Conference on Image Processing (ICIP)},
+  year = {2017},
+  pages = {3645--3649},
+  doi = {10.1109/ICIP.2017.8296962},
+  note = {DeepSORT; adds an appearance re-identification embedding distance to
+          the SORT cost matrix in [Bewley2016].},
+}
+
+
+% ByteTrack: extends SORT-style tracking to also associate
+% low-confidence detections via a second assignment pass.
+@inproceedings{Zhang2022,
+  author = {Zhang, Yifu and Sun, Peize and Jiang, Yi and Yu, Dongdong
+            and Weng, Fucheng and Yuan, Zehuan and Luo, Ping and Liu, Wenyu
+            and Wang, Xinggang},
+  title = {{ByteTrack}: Multi-object tracking by associating every detection box},
+  booktitle = {European Conference on Computer Vision (ECCV)},
+  year = {2022},
+  series = {Lecture Notes in Computer Science},
+  volume = {13682},
+  pages = {1--21},
+  doi = {10.1007/978-3-031-20047-2_1},
+  note = {Associates low-confidence detections through a second Hungarian
+          assignment pass on top of the SORT template.},
+}
+
+
+% BoT-SORT: refines the SORT motion model with camera-motion
+% compensation and adds appearance embeddings; assignment step
+% unchanged. arXiv-only.
+@article{Aharon2022,
+  author = {Aharon, Nir and Orfaig, Roy and Bobrovsky, Ben-Zion},
+  title = {{BoT-SORT}: Robust associations multi-pedestrian tracking},
+  journal = {arXiv preprint arXiv:2206.14651},
+  year = {2022},
+  note = {Camera-motion compensation and appearance embeddings on top of the
+          SORT template; the Hungarian assignment step is unchanged.},
+}
+
+
+% OC-SORT: observation-centric re-update reducing the motion-model
+% drift that pure Kalman-filter prediction accumulates during
+% occlusions.
+@inproceedings{Cao2023,
+  author = {Cao, Jinkun and Pang, Jiangmiao and Weng, Xinshuo
+            and Khirodkar, Rawal and Kitani, Kris},
+  title = {Observation-centric {SORT}: Rethinking {SORT} for robust
+           multi-object tracking},
+  booktitle = {IEEE/CVF Conference on Computer Vision and Pattern Recognition
+               (CVPR)},
+  year = {2023},
+  pages = {9686--9696},
+  doi = {10.1109/CVPR52729.2023.00934},
+  note = {Observation-centric re-update reduces motion-model drift under
+          occlusion; same Hungarian assignment core as [Bewley2016].},
+}
+
+
+% DETR: places the Hungarian matcher on the training-time critical
+% path via a set-prediction loss over a fixed-size prediction set.
+% torchmatch's batched LAP ops target exactly this training-time
+% matching cost.
+@inproceedings{Carion2020,
+  author = {Carion, Nicolas and Massa, Francisco and Synnaeve, Gabriel
+            and Usunier, Nicolas and Kirillov, Alexander and Zagoruyko, Sergey},
+  title = {End-to-end object detection with transformers},
+  booktitle = {European Conference on Computer Vision (ECCV)},
+  year = {2020},
+  series = {Lecture Notes in Computer Science},
+  volume = {12346},
+  pages = {213--229},
+  doi = {10.1007/978-3-030-58452-8_13},
+  note = {DETR; introduces the Hungarian-matching set-prediction training
+          loss that the entire DETR lineage, including [Cheng2021], preserves.},
+}
+
+
+% MaskFormer: a DETR-lineage mask-classification model; preserves the
+% Hungarian matching step for per-mask set prediction.
+@inproceedings{Cheng2021,
+  author = {Cheng, Bowen and Schwing, Alexander G. and Kirillov, Alexander},
+  title = {Per-pixel classification is not all you need for semantic
+           segmentation},
+  booktitle = {Advances in Neural Information Processing Systems},
+  year = {2021},
+  volume = {34},
+  pages = {17864--17875},
+  note = {MaskFormer; recasts semantic segmentation as mask classification,
+          preserving the Hungarian matching step from the DETR lineage
+          ([Carion2020]).},
+}
+
+
+% ── Transport applications (blog) ───────────────────────────────────────────
+
+% Formalises photo-realistic colour transfer as iterated 1D OT
+% projections (sliced Wasserstein), scaling to full 3D colour
+% histograms without materialising an n^3 cost.
+@article{Pitie2007,
+  author = {Piti{\'e}, Fran{\c{c}}ois and Kokaram, Anil C. and Dahyot, Rozenn},
+  title = {Automated colour grading using colour distribution transfer},
+  journal = {Computer Vision and Image Understanding},
+  year = {2007},
+  volume = {107},
+  number = {1--2},
+  pages = {123--137},
+  doi = {10.1016/j.cviu.2006.11.011},
+  note = {Iterated 1D OT projections (sliced Wasserstein) for colour transfer;
+          scales to full 3D colour histograms.},
+}
+
+
+% Wasserstein autoencoder: replaces the VAE evidence lower bound with a
+% Wasserstein distance between the aggregate posterior and the prior.
+@inproceedings{Tolstikhin2018,
+  author = {Tolstikhin, Ilya and Bousquet, Olivier and Gelly, Sylvain
+            and Sch{\"o}lkopf, Bernhard},
+  title = {Wasserstein auto-encoders},
+  booktitle = {International Conference on Learning Representations},
+  year = {2018},
+  note = {WAE; replaces the VAE evidence lower bound with a Wasserstein
+          distance between the aggregate posterior and the prior.},
+}
+
+
+% Flow matching: frames diffusion-model training as learning a vector
+% field that transports a noise source distribution to the data target
+% distribution.
+@inproceedings{Lipman2022,
+  author = {Lipman, Yaron and Chen, Ricky T. Q. and Ben-Hamu, Heli
+            and Nickel, Maximilian and Le, Matt},
+  title = {Flow matching for generative modeling},
+  booktitle = {International Conference on Learning Representations},
+  year = {2023},
+  note = {Frames diffusion-model training as learning a vector field
+          transporting a noise source distribution to the data target
+          distribution; the OT-conditioned variant uses the OT displacement
+          plan between individual samples.},
+}
+
+
+% Rectified flow: straightens flow-matching trajectories via an
+% OT-conditioned reflow procedure, reducing the number of sampling
+% steps needed at inference.
+@inproceedings{Liu2022,
+  author = {Liu, Xingchao and Gong, Chengyue and Liu, Qiang},
+  title = {Flow straight and fast: Learning to generate and transfer data
+           with rectified flow},
+  booktitle = {International Conference on Learning Representations},
+  year = {2023},
+  note = {Straightens [Lipman2022]-style flow-matching trajectories via an
+          OT-conditioned reflow procedure, reducing inference sampling steps.},
+}
+
+
+% OTDA: transports labelled source features toward an unlabelled target
+% domain using the regularised OT plan between the two feature
+% distributions, then trains a target-domain classifier on the result.
+@article{Courty2017,
+  author = {Courty, Nicolas and Flamary, R{\'e}mi and Tuia, Devis
+            and Rakotomamonjy, Alain},
+  title = {Optimal transport for domain adaptation},
+  journal = {IEEE Transactions on Pattern Analysis and Machine Intelligence},
+  year = {2017},
+  volume = {39},
+  number = {9},
+  pages = {1853--1865},
+  doi = {10.1109/TPAMI.2016.2615921},
+  note = {OTDA; transports labelled source features toward an unlabelled
+          target domain via the regularised OT plan, then trains a
+          target-domain classifier on the result.},
+}
+
+
+% DeepJDOT: integrates OT domain-adaptation alignment into end-to-end
+% training, recomputing the OT plan between source/target minibatches
+% each iteration.
+@inproceedings{Damodaran2018,
+  author = {Damodaran, Bharath Bhushan and Kellenberger, Benjamin
+            and Flamary, R{\'e}mi and Tuia, Devis and Courty, Nicolas},
+  title = {{DeepJDOT}: Deep joint distribution optimal transport for
+           unsupervised domain adaptation},
+  booktitle = {European Conference on Computer Vision (ECCV)},
+  year = {2018},
+  series = {Lecture Notes in Computer Science},
+  volume = {11208},
+  pages = {467--483},
+  doi = {10.1007/978-3-030-01225-0_28},
+  note = {Integrates [Courty2017]-style OT alignment into end-to-end training;
+          the OT plan between minibatches is recomputed every iteration and
+          reweights the classification loss.},
+}
+
+
+% Wasserstein barycenters: weighted averages of distributions in
+% Wasserstein space that respect the geometry of the ground metric.
+@article{Agueh2011,
+  author = {Agueh, Martial and Carlier, Guillaume},
+  title = {Barycenters in the {W}asserstein space},
+  journal = {SIAM Journal on Mathematical Analysis},
+  year = {2011},
+  volume = {43},
+  number = {2},
+  pages = {904--924},
+  doi = {10.1137/100805741},
+  note = {Defines Wasserstein barycenters; weighted averages of distributions
+          that respect the geometry of the ground metric, unlike Euclidean
+          averaging.},
+}
+
+
+% Word Mover's Distance: OT between word-embedding distributions of
+% two documents, using pretrained embeddings as the ground metric.
+@inproceedings{Kusner2015,
+  author = {Kusner, Matt J. and Sun, Yu and Kolkin, Nicholas I.
+            and Weinberger, Kilian Q.},
+  title = {From word embeddings to document distances},
+  booktitle = {International Conference on Machine Learning},
+  year = {2015},
+  volume = {37},
+  pages = {957--966},
+  publisher = {PMLR},
+  note = {Word Mover's Distance; OT between word-embedding distributions of
+          two documents, insensitive to synonymy and paraphrase.},
+}
+
+
+% Waddington-OT: models cellular differentiation as an OT problem
+% between adjacent-timepoint scRNA-seq profiles, recovering
+% developmental trajectories without paired data.
+@article{Schiebinger2019,
+  author = {Schiebinger, Geoffrey and Shu, Jian and Tabaka, Marcin
+            and Cleary, Brian and Subramanian, Vidya and Solomon, Aryeh
+            and Gould, Joshua and Liu, Siyan and Lin, Stacie and Berube, Peter
+            and Lee, Lia and Chen, Jenny and Brumbaugh, Justin
+            and Rigollet, Philippe and Hochedlinger, Konrad
+            and Jaenisch, Rudolf and Regev, Aviv and Lander, Eric S.},
+  title = {Optimal-transport analysis of single-cell gene expression
+           identifies developmental trajectories in reprogramming},
+  journal = {Cell},
+  year = {2019},
+  volume = {176},
+  number = {4},
+  pages = {928--943},
+  doi = {10.1016/j.cell.2019.01.006},
+  note = {Waddington-OT; the OT plan between adjacent-timepoint scRNA-seq
+          profiles recovers developmental trajectories without paired data.},
+}
+
+
+% Moscot: scales Waddington-OT-style trajectory inference to
+% million-cell datasets and extends it to spatial and multi-omics
+% single-cell data. Cited as the bioRxiv preprint (2023); later
+% published in Nature (2025).
+@article{Klein2023,
+  author = {Klein, Dominik and Palla, Giovanni and Lange, Marius
+            and Klein, Michal and Piran, Zoe and Gander, Manuel
+            and Meng-Papaxanthos, Laetitia and Sterr, Michael
+            and Treutlein, Barbara and Lickert, Heiko and Theis, Fabian J.},
+  title = {Mapping cells through time and space with moscot},
+  journal = {bioRxiv},
+  year = {2023},
+  doi = {10.1101/2023.05.11.540374},
+  note = {Moscot; scales OT-based single-cell trajectory inference in
+          [Schiebinger2019] to million-cell, multi-omics, and spatial
+          datasets. Later published in Nature (2025).},
 }
