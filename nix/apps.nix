@@ -17,6 +17,16 @@
 }: let
   defaultVariant = variants.${defaultVariantName};
 
+  # Mirrors devshells.nix's hostGpuHook: `nix run` apps don't source the
+  # devShell's shellHook, so Triton (transport.samples, benchmarks) falls
+  # back to `ldconfig -p` for libcuda.so discovery -- absent on NixOS.
+  hostGpuHook = ''
+    if [ -d "/run/opengl-driver/lib" ]; then
+      export LD_LIBRARY_PATH="/run/opengl-driver/lib''${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+      export TRITON_LIBCUDA_PATH="/run/opengl-driver/lib"
+    fi
+  '';
+
   mkVenvApp = {
     name,
     variant ? defaultVariant,
@@ -28,6 +38,7 @@
       runtimeInputs = [variant.venv] ++ runtimeInputs;
       text = ''
         set -euo pipefail
+        ${hostGpuHook}
         ${text}
       '';
     };
