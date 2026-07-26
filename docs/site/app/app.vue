@@ -1,13 +1,8 @@
 <script setup lang="ts">
 const { seo } = useAppConfig();
 
-// Blog posts stay in the "docs" collection (so individual post pages still
-// resolve through the ordinary path lookup) but are excluded from the nav
-// tree -- otherwise they'd nest as ordinary children under whatever
-// alphabetically-first section, instead of only appearing through the
-// dedicated /blog listing (see app.config.ts's header.extraLinks entry).
 const { data: navigation } = await useAsyncData("navigation", () =>
-  queryCollectionNavigation("docs").where("path", "NOT LIKE", "/blog/%"),
+  queryCollectionNavigation("docs"),
 );
 const { data: files } = useLazyAsyncData(
   "search",

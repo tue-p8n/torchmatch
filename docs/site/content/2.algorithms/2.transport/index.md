@@ -117,5 +117,9 @@ The `transport.matrix` dispatcher accepts four backends:
 - [Algorithms](/algorithms/transport/algorithms) — Sinkhorn, debiasing, unbalanced OT, network simplex
 - [Reference](/algorithms/transport/reference) — full signatures for `matrix.solve` and `samples.loss`
 - [Choosing](/algorithms/transport/choosing) — which backend to use and when
+- [Building](/algorithms/transport/building) — wheel vs JIT runtime paths, build-time and
+  runtime environment variables
+- [Tutorials](/algorithms/transport/tutorials) — deeper notebook-based walkthroughs, from the
+  earth-mover intuition through point clouds
 
-See also the [history of applications](/blog/transport-applications) — generative models, domain adaptation, geometric learning, and more — on the blog.
+See also the [history of applications](/resources/transport-applications) — generative models, domain adaptation, geometric learning, and more.

@@ -70,5 +70,7 @@ The [Algorithms](/algorithms/assignment/algorithms) page explains the mathematic
 - [Algorithms](/algorithms/assignment/algorithms) — how Jonker-Volgenant, Munkres, and Lawler work and how they differ
 - [Reference](/algorithms/assignment/reference) — full signature for every op
 - [Choosing](/algorithms/assignment/choosing) — benchmark-backed decision tree
+- [Tutorials](/algorithms/assignment/tutorials) — deeper notebook-based walkthroughs, from first
+  principles through object tracking
 
-See also the [history of applications](/blog/assignment-applications) — tracking, DETR losses, cluster evaluation, and more — on the blog.
+See also the [history of applications](/resources/assignment-applications) — tracking, DETR losses, cluster evaluation, and more.

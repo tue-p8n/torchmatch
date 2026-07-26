@@ -18,7 +18,6 @@ export default defineAppConfig({
     },
     search: true,
     colorMode: true,
-    extraLinks: [{ label: "Blog", to: "/blog" }],
     links: [
       {
         icon: "i-simple-icons-github",
