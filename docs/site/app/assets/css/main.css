@@ -1,0 +1,459 @@
+@import "tailwindcss";
+@import "@nuxt/ui";
+
+@source "../../../content/**/*";
+
+/* Type system
+ * -----------
+ * Display  : Recursive Sans (variable; wght + CASL + MONO + slnt).
+ *            Stephen Nixon / Arrow Type. Designed for code editors and
+ *            technical documentation. We lock CASL=0 (linear/formal)
+ *            and MONO=0 (sans) so headings read as a clean engineered
+ *            grotesque, with subtle distinctive forms (curled tails on
+ *            'a', 'l', 'y'; geometric 'g'). Pairs naturally with
+ *            JetBrains Mono since both share an editor lineage.
+ * Body     : Manrope (variable). Geometric semi-sans; more open and
+ *            engineered than Plex Sans, less generic than Inter.
+ * Mono     : JetBrains Mono (variable). Sharper terminals, slashed zero,
+ *            hooked l. Engineered for readability in datasheet-density
+ *            text. */
+@theme static {
+  --font-display:
+    "Recursive", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-sans:
+    "Manrope", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono:
+    "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+/* Recursive axes. Setting these on every element that uses the display
+ * face locks the variant to "Linear Sans" — the cleanest, most
+ * engineered cut of the family. Without these, browsers may render
+ * the default which has a touch of casual energy. */
+:root {
+  --recursive-axes: "CASL" 0, "MONO" 0, "slnt" 0;
+}
+
+/* Wireframe / instrument-panel aesthetic.
+ * Tight radii, hairline-ring shadows in place of soft drop shadows. */
+@theme static {
+  --radius-xs: 0;
+  --radius-sm: 1px;
+  --radius-md: 2px;
+  --radius-lg: 3px;
+  --radius-xl: 4px;
+  --radius-2xl: 6px;
+  --radius-3xl: 8px;
+
+  --shadow-2xs: 0 0 0 1px color-mix(in oklab, currentColor 6%, transparent);
+  --shadow-xs: 0 0 0 1px color-mix(in oklab, currentColor 8%, transparent);
+  --shadow-sm:
+    0 1px 0 0 rgb(0 0 0 / 0.04),
+    0 0 0 1px color-mix(in oklab, currentColor 10%, transparent);
+  --shadow-md:
+    0 1px 2px rgb(0 0 0 / 0.05),
+    0 0 0 1px color-mix(in oklab, currentColor 10%, transparent);
+  --shadow-lg:
+    0 2px 4px rgb(0 0 0 / 0.06),
+    0 0 0 1px color-mix(in oklab, currentColor 12%, transparent);
+  --shadow-xl:
+    0 4px 8px rgb(0 0 0 / 0.08),
+    0 0 0 1px color-mix(in oklab, currentColor 14%, transparent);
+  --shadow-2xl:
+    0 8px 16px rgb(0 0 0 / 0.1),
+    0 0 0 1px color-mix(in oklab, currentColor 16%, transparent);
+}
+
+/* Primary palette: PyTorch-adjacent red (hue 28). The PyTorch brand
+ * sits near hue 33°; shifting to 28° moves one step toward pure red
+ * (~29° in oklch) — noticeably redder than PyTorch's orange-red
+ * without losing warmth. The 500 step lands near #E03520.
+ *
+ * Alternative palettes (swap the hue, leave the L / C ramp):
+ *   - Cobalt cyan    : hue 230 (previous default)
+ *   - Phosphor lime  : hue 135 (oscilloscope green)
+ *   - Signal magenta : hue 340 (diagnostic marker)
+ *   - Sodium amber   : hue  75 (instrument-panel readout) */
+@theme static {
+  --color-primary-50: oklch(96.5% 0.015 28);
+  --color-primary-100: oklch(92% 0.04 28);
+  --color-primary-200: oklch(85% 0.09 28);
+  --color-primary-300: oklch(76% 0.16 28);
+  --color-primary-400: oklch(67% 0.21 28);
+  --color-primary-500: oklch(58% 0.23 28);
+  --color-primary-600: oklch(50% 0.21 28);
+  --color-primary-700: oklch(42% 0.18 28);
+  --color-primary-800: oklch(34% 0.14 28);
+  --color-primary-900: oklch(25% 0.09 28);
+  --color-primary-950: oklch(17% 0.06 28);
+}
+
+@layer base {
+  :root {
+    --ui-primary: var(--ui-color-primary-500);
+    /* Tighten NuxtUI's component radius globally. */
+    --ui-radius: 0.125rem;
+  }
+
+  html {
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+    font-feature-settings: "kern", "liga", "calt";
+  }
+
+  body {
+    line-height: 1.6;
+  }
+
+  /* Headings: Recursive display face. text-wrap: balance keeps
+   * multi-line headings honest. */
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: var(--font-display);
+    color: var(--ui-text-highlighted, inherit);
+    text-wrap: balance;
+    font-feature-settings: "kern";
+  }
+
+  h1,
+  .u-page-hero :where(h1) {
+    /* Recursive at heavy weight in Linear (CASL=0, MONO=0) mode. The
+     * letter-spacing offset is tuned to its slightly wider proportions
+     * compared with display-tuned typefaces. */
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    line-height: 1.02;
+    font-variation-settings: var(--recursive-axes);
+  }
+
+  .u-page-hero :where(h2) {
+    font-weight: 400;
+    letter-spacing: -0.005em;
+    line-height: 1.22;
+    color: var(--ui-text-muted, inherit);
+    font-variation-settings: var(--recursive-axes);
+  }
+
+  h2,
+  .u-page-section :where(h2) {
+    font-weight: 700;
+    letter-spacing: -0.018em;
+    line-height: 1.12;
+    font-variation-settings: var(--recursive-axes);
+  }
+
+  h3 {
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    line-height: 1.2;
+    font-variation-settings: var(--recursive-axes);
+  }
+
+  h4 {
+    font-weight: 600;
+    letter-spacing: -0.005em;
+    line-height: 1.25;
+    font-variation-settings: var(--recursive-axes);
+  }
+
+  h5,
+  h6 {
+    font-weight: 500;
+    letter-spacing: 0;
+    line-height: 1.3;
+    font-variation-settings: var(--recursive-axes);
+  }
+
+  strong,
+  b {
+    font-weight: 600;
+  }
+
+  em,
+  i,
+  cite,
+  dfn {
+    font-style: italic;
+  }
+
+  /* Monospaced text: JetBrains Mono. Ligatures off; operator boundaries
+   * (`->`, `>>=`, `!=`, `>>`) matter in tensor code. */
+  code,
+  kbd,
+  samp,
+  pre,
+  var,
+  .font-mono {
+    font-family: var(--font-mono);
+    font-variant-ligatures: none;
+    font-feature-settings:
+      "calt" off,
+      "liga" off;
+  }
+
+  /* Inline code: tightened size + crisp 1px border. */
+  :not(pre) > code {
+    font-size: 0.9em;
+    padding-inline: 0.3em;
+    padding-block: 0.05em;
+    border-radius: 2px;
+    border: 1px solid color-mix(in oklab, currentColor 12%, transparent);
+    color: var(--ui-text-highlighted, inherit);
+  }
+
+  :where(h1, h2, h3, h4, h5, h6) :where(code, kbd, samp, var) {
+    font-style: normal;
+    font-weight: inherit;
+    font-size: 0.85em;
+  }
+
+  small,
+  .text-xs,
+  .text-2xs,
+  caption,
+  figcaption {
+    letter-spacing: 0.005em;
+  }
+
+  /* Tabular figures wherever numerals appear in tables; benchmark
+   * tables stay aligned. */
+  table,
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Wireframe table styling: hard 1px outer frame, hairline horizontal
+   * rows only. Reads as datasheet, not card.
+   * Scoped via :not(.not-prose) so component-level tables keep their
+   * own chrome. */
+  :where(:not(.not-prose, .not-prose *)) > table,
+  :where(:not(.not-prose, .not-prose *)) table:not([class]) {
+    border-collapse: collapse;
+    width: 100%;
+    margin-block: 1.5rem;
+    border-block: 1px solid
+      var(
+        --ui-border-accented,
+        color-mix(in oklab, currentColor 22%, transparent)
+      );
+    font-variant-numeric: tabular-nums;
+  }
+
+  :where(:not(.not-prose, .not-prose *)) > table :where(th, td),
+  :where(:not(.not-prose, .not-prose *)) table:not([class]) :where(th, td) {
+    padding-block: 0.6rem;
+    padding-inline: 1rem;
+    vertical-align: top;
+    border: 0;
+  }
+
+  :where(:not(.not-prose, .not-prose *)) > table :where(thead),
+  :where(:not(.not-prose, .not-prose *)) table:not([class]) :where(thead) {
+    border-bottom: 1px solid
+      var(
+        --ui-border-accented,
+        color-mix(in oklab, currentColor 22%, transparent)
+      );
+  }
+
+  :where(:not(.not-prose, .not-prose *)) > table :where(tbody tr + tr),
+  :where(:not(.not-prose, .not-prose *))
+    table:not([class])
+    :where(tbody tr + tr) {
+    border-top: 1px solid
+      var(--ui-border, color-mix(in oklab, currentColor 10%, transparent));
+  }
+
+  :where(:not(.not-prose, .not-prose *)) > table :where(th),
+  :where(:not(.not-prose, .not-prose *)) table:not([class]) :where(th) {
+    font-family: var(--font-display);
+    font-weight: 500;
+    font-size: 0.78em;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--ui-text-muted, inherit);
+  }
+
+  :where(:not(.not-prose, .not-prose *)) > table :not(pre) > code,
+  :where(:not(.not-prose, .not-prose *)) table:not([class]) :not(pre) > code {
+    border: 0;
+    padding: 0;
+    background: transparent;
+    color: inherit;
+    font-size: 0.92em;
+  }
+
+  /* Horizontal rules are 1px hairlines. */
+  :where(:not(.not-prose, .not-prose *)) > hr {
+    border: 0;
+    border-top: 1px solid
+      var(--ui-border, color-mix(in oklab, currentColor 14%, transparent));
+    margin-block: 2rem;
+  }
+}
+
+/* Docs body prose
+ * ---------------
+ * Aligns ContentRenderer output with the landing datasheet aesthetic:
+ * Bricolage headings with eyebrow rules, sharp code blocks, hairline
+ * lists, cobalt-accent links. Scoped to the `.docs-prose` wrapper on
+ * UPageBody so it never bleeds into Nuxt UI shells or landing
+ * components that already own their chrome. */
+.docs-prose :where(h2, h3, h4) {
+  position: relative;
+  scroll-margin-top: 5rem;
+}
+.docs-prose :where(h2) {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(1.5rem, 2.4vw, 1.95rem);
+  letter-spacing: -0.018em;
+  line-height: 1.15;
+  margin-top: 3rem;
+  margin-bottom: 1rem;
+  padding-bottom: 0.65rem;
+  border-bottom: 1px solid var(--ui-border);
+  font-variation-settings: var(--recursive-axes);
+}
+.docs-prose :where(h2)::before {
+  content: "";
+  display: block;
+  width: 24px;
+  height: 2px;
+  background: var(--color-primary-500);
+  margin-bottom: 0.85rem;
+}
+.docs-prose :where(h3) {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: clamp(1.18rem, 1.6vw, 1.35rem);
+  letter-spacing: -0.012em;
+  line-height: 1.25;
+  margin-top: 2.25rem;
+  margin-bottom: 0.75rem;
+  font-variation-settings: var(--recursive-axes);
+}
+.docs-prose :where(h4) {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 1.05rem;
+  letter-spacing: -0.006em;
+  margin-top: 1.75rem;
+  margin-bottom: 0.5rem;
+  font-variation-settings: var(--recursive-axes);
+}
+
+.docs-prose :where(p) {
+  font-family: var(--font-sans);
+  font-size: 1rem;
+  line-height: 1.7;
+  color: var(--ui-text-muted);
+  margin-block: 0.9em;
+}
+
+.docs-prose :where(a):not([class]) {
+  color: var(--color-primary-500);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+  transition: text-decoration-thickness 100ms ease;
+}
+.docs-prose :where(a):not([class]):hover {
+  text-decoration-thickness: 2px;
+}
+
+.docs-prose :where(ul, ol) {
+  padding-left: 1.4rem;
+  margin-block: 0.9em;
+}
+.docs-prose :where(ul) {
+  list-style: none;
+  padding-left: 0;
+}
+.docs-prose :where(ul) > li {
+  position: relative;
+  padding-left: 1.25rem;
+  margin-block: 0.35em;
+}
+.docs-prose :where(ul) > li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0.7em;
+  width: 6px;
+  height: 1px;
+  background: var(--color-primary-500);
+}
+.docs-prose :where(ol) {
+  list-style: none;
+  counter-reset: docs-ol;
+  padding-left: 0;
+}
+.docs-prose :where(ol) > li {
+  counter-increment: docs-ol;
+  position: relative;
+  padding-left: 2.25rem;
+  margin-block: 0.35em;
+}
+.docs-prose :where(ol) > li::before {
+  content: counter(docs-ol, decimal-leading-zero);
+  position: absolute;
+  left: 0;
+  top: 0.05em;
+  font-family: var(--font-mono);
+  font-size: 0.78em;
+  letter-spacing: 0.04em;
+  color: var(--color-primary-500);
+}
+
+.docs-prose :where(blockquote) {
+  margin-block: 1.25rem;
+  padding: 0.85rem 1.15rem;
+  border: 0;
+  border-left: 2px solid var(--color-primary-500);
+  background: color-mix(in oklab, var(--color-primary-500) 4%, transparent);
+  font-family: var(--font-sans);
+  color: var(--ui-text);
+  font-style: normal;
+}
+.docs-prose :where(blockquote) :where(p):first-child {
+  margin-top: 0;
+}
+.docs-prose :where(blockquote) :where(p):last-child {
+  margin-bottom: 0;
+}
+
+.docs-prose :where(pre) {
+  margin-block: 1.25rem;
+  padding: 1rem 1.15rem;
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  line-height: 1.6;
+  border: 1px solid
+    var(
+      --ui-border-accented,
+      color-mix(in oklab, currentColor 18%, transparent)
+    );
+  border-radius: 2px;
+  background: var(--ui-bg-elevated, white);
+  overflow-x: auto;
+  tab-size: 4;
+  color: var(--ui-text);
+}
+.docs-prose :where(pre) > code {
+  font-family: inherit;
+  font-size: inherit;
+  background: transparent;
+  border: 0;
+  padding: 0;
+  color: inherit;
+}
+.docs-prose :where(pre) .line {
+  display: block;
+}

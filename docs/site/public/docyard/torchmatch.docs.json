@@ -1,0 +1,2646 @@
+{
+  "docyard": "1",
+  "language": "python",
+  "name": "torchmatch",
+  "version": "unknown",
+  "items": [
+    {
+      "id": "torchmatch",
+      "kind": "module",
+      "path": [
+        "torchmatch"
+      ],
+      "signature": "module torchmatch",
+      "summary": "torchmatch - assignment and transport solvers for PyTorch.",
+      "source": {
+        "file": "torchmatch/__init__.py",
+        "line": 1
+      }
+    },
+    {
+      "id": "torchmatch.assignment",
+      "kind": "module",
+      "path": [
+        "torchmatch",
+        "assignment"
+      ],
+      "signature": "module torchmatch.assignment",
+      "summary": "Integer linear assignment problem (LAP) solvers.",
+      "description": "Public surface:\n\n- :func:`solve` -- the dispatcher; resolves AUTO at call time so the\n  picked op traces cleanly under ``torch.compile``.\n- :class:`Backend` -- backend choices accepted by :func:`solve`.\n- :mod:`ops` -- direct access to ``torch.ops.assignment.*`` op handles\n  for callers that want to pin a backend.",
+      "source": {
+        "file": "torchmatch/assignment/__init__.py",
+        "line": 1
+      },
+      "parent": "torchmatch"
+    },
+    {
+      "id": "torchmatch.assignment.load_cpu",
+      "kind": "function",
+      "path": [
+        "torchmatch",
+        "assignment",
+        "load_cpu"
+      ],
+      "signature": "def load_cpu() -\u003e None",
+      "summary": "Register ``torch.ops.assignment.jonker_*`` (CPU backend).",
+      "description": "Prefers a prebuilt extension shipped in the wheel and falls back\nto JIT-compiling the C++ sources via\n:func:`torch.utils.cpp_extension.load`. Set\n``TORCHMATCH_FORCE_JIT=1`` to skip the prebuilt path.",
+      "source": {
+        "file": "torchmatch/assignment/_cpu.py",
+        "line": 64
+      },
+      "parent": "torchmatch.assignment"
+    },
+    {
+      "id": "torchmatch.assignment.load_cuda",
+      "kind": "function",
+      "path": [
+        "torchmatch",
+        "assignment",
+        "load_cuda"
+      ],
+      "signature": "def load_cuda() -\u003e None",
+      "summary": "Register the CUDA-only ops in ``torch.ops.assignment``.",
+      "description": "Adds Munkres classical (``munkres``), the experimental Munkres\nhybrid (``hybrid``), Lawler tree-augmentation (``lawler``), and the\nCUDA backend of ``jonker_dense_batch``. Prefers a prebuilt extension\nshipped in the wheel and falls back to JIT-compiling the C++/CUDA\nsources via :func:`torch.utils.cpp_extension.load`. Set\n``TORCHMATCH_FORCE_JIT=1`` to skip the prebuilt path.",
+      "source": {
+        "file": "torchmatch/assignment/_cuda.py",
+        "line": 61
+      },
+      "parent": "torchmatch.assignment"
+    },
+    {
+      "id": "torchmatch.assignment.auction_assignment",
+      "kind": "function",
+      "path": [
+        "torchmatch",
+        "assignment",
+        "auction_assignment"
+      ],
+      "signature": "def auction_assignment(cost_matrix: torch.Tensor, bid_size: float, max_iters: int = 100000) -\u003e tuple[torch.Tensor, torch.Tensor, torch.Tensor]",
+      "summary": "Solve a linear assignment problem using Bertsekas' auction algorithm.",
+      "description": "Converts the cost matrix to a profit matrix, then runs synchronous\nbidding until every row (or every column, for rectangular problems) is\nassigned. Non-finite entries mark forbidden pairs and are penalised\ninternally so the solver never selects them.",
+      "params": [
+        {
+          "name": "cost_matrix",
+          "type": "torch.Tensor",
+          "doc": "``(N, M)`` cost matrix. ``+inf`` entries mark forbidden pairs.\nNaN and ``-inf`` are rejected."
+        },
+        {
+          "name": "bid_size",
+          "type": "float",
+          "doc": "Auction bid step size. The internal ``epsilon`` is derived as\n``min(bid_size / min(N, M), 1e-3)``."
+        },
+        {
+          "name": "max_iters",
+          "type": "int",
+          "default": "100000",
+          "doc": "Maximum number of bidding iterations. Raises ``RuntimeError`` if\nthe algorithm has not converged within this budget."
+        }
+      ],
+      "returns": {
+        "type": "torch.Tensor",
+        "doc": "``(K, 2)`` long tensor of matched ``(row, col)`` indices."
+      },
+      "source": {
+        "file": "torchmatch/assignment/_auction.py",
+        "line": 10
+      },
+      "parent": "torchmatch.assignment"
+    },
+    {
+      "id": "torchmatch.assignment.assignment_cost",
+      "kind": "function",
+      "path": [
+        "torchmatch",
+        "assignment",
+        "assignment_cost"
+      ],
+      "signature": "def assignment_cost(cost: torch.Tensor, matches: torch.Tensor, reduction: str = 'sum') -\u003e torch.Tensor",
+      "summary": "Compute the total cost of a LAP assignment.",
+      "params": [
+        {
+          "name": "cost",
+          "type": "torch.Tensor",
+          "doc": "Cost matrix (N, M) or (B, N, M). float32 or float64."
+        },
+        {
+          "name": "matches",
+          "type": "torch.Tensor",
+          "doc": "Row→col assignment (N,) or (B, N). int64. Unmatched rows have ``-1``."
+        },
+        {
+          "name": "reduction",
+          "type": "str",
+          "default": "'sum'",
+          "doc": "How to aggregate per-row costs: ``\"sum\"`` (default) sums all matched\nrows; ``\"mean\"`` divides by the number of matched rows; ``\"none\"``\nreturns per-row costs with unmatched rows set to 0."
+        }
+      ],
+      "returns": {
+        "type": "total",
+        "doc": "Scalar for 2-D input or (B,) for 3-D input, unless\n``reduction=\"none\"``, in which case the shape is (N,) or (B, N)."
+      },
+      "source": {
+        "file": "torchmatch/assignment/_cost.py",
+        "line": 8
+      },
+      "parent": "torchmatch.assignment"
+    },
+    {
+      "id": "torchmatch.assignment.Backend",
+      "kind": "type",
+      "path": [
+        "torchmatch",
+        "assignment",
+        "Backend"
+      ],
+      "signature": "class Backend(StrEnum):",
+      "source": {
+        "file": "torchmatch/assignment/_solve.py",
+        "line": 25
+      },
+      "parent": "torchmatch.assignment"
+    },
+    {
+      "id": "torchmatch.assignment.Backend.AUTO",
+      "kind": "constant",
+      "path": [
+        "torchmatch",
+        "assignment",
+        "Backend",
+        "AUTO"
+      ],
+      "signature": "AUTO = 'auto'",
+      "source": {
+        "file": "torchmatch/assignment/_solve.py",
+        "line": 26
+      },
+      "parent": "torchmatch.assignment.Backend"
+    },
+    {
+      "id": "torchmatch.assignment.Backend.JONKER",
+      "kind": "constant",
+      "path": [
+        "torchmatch",
+        "assignment",
+        "Backend",
+        "JONKER"
+      ],
+      "signature": "JONKER = 'jonker'",
+      "source": {
+        "file": "torchmatch/assignment/_solve.py",
+        "line": 27
+      },
+      "parent": "torchmatch.assignment.Backend"
+    },
+    {
+      "id": "torchmatch.assignment.Backend.MUNKRES",
+      "kind": "constant",
+      "path": [
+        "torchmatch",
+        "assignment",
+        "Backend",
+        "MUNKRES"
+      ],
+      "signature": "MUNKRES = 'munkres'",
+      "source": {
+        "file": "torchmatch/assignment/_solve.py",
+        "line": 28
+      },
+      "parent": "torchmatch.assignment.Backend"
+    },
+    {
+      "id": "torchmatch.assignment.Backend.LAWLER",
+      "kind": "constant",
+      "path": [
+        "torchmatch",
+        "assignment",
+        "Backend",
+        "LAWLER"
+      ],
+      "signature": "LAWLER = 'lawler'",
+      "source": {
+        "file": "torchmatch/assignment/_solve.py",
+        "line": 29
+      },
+      "parent": "torchmatch.assignment.Backend"
+    },
+    {
+      "id": "torchmatch.assignment.Backend.GREEDY",
+      "kind": "constant",
+      "path": [
+        "torchmatch",
+        "assignment",
+        "Backend",
+        "GREEDY"
+      ],
+      "signature": "GREEDY = 'greedy'",
+      "source": {
+        "file": "torchmatch/assignment/_solve.py",
+        "line": 30
+      },
+      "parent": "torchmatch.assignment.Backend"
+    },
+    {
+      "id": "torchmatch.assignment.resolve_backend",
+      "kind": "function",
+      "path": [
+        "torchmatch",
+        "assignment",
+        "resolve_backend"
+      ],
+      "signature": "def resolve_backend(cost: torch.Tensor, backend: Backend | str = Backend.AUTO) -\u003e str",
+      "summary": "Return the op name that ``solve()`` would dispatch to.",
+      "description": "Useful for debugging AUTO routing and for asserting which backend fires\nin a test or benchmark.",
+      "params": [
+        {
+          "name": "cost",
+          "type": "torch.Tensor",
+          "doc": "Cost matrix (N, M) or (B, N, M) on the target device."
+        },
+        {
+          "name": "backend",
+          "type": "Backend | str",
+          "default": "Backend.AUTO",
+          "doc": "Backend hint. Non-``AUTO`` values are echoed back as their string value\n(e.g. ``\"munkres\"``)."
+        }
+      ],
+      "returns": {
+        "type": "op_name",
+        "doc": "Exact ``torch.ops.assignment.\u003cname\u003e`` key — e.g. ``\"jonker_compact\"``,\n``\"munkres\"``, ``\"lawler\"``, ``\"greedy\"``."
+      },
+      "source": {
+        "file": "torchmatch/assignment/_solve.py",
+        "line": 291
+      },
+      "parent": "torchmatch.assignment"
+    },
+    {
+      "id": "torchmatch.assignment.solve",
+      "kind": "function",
+      "path": [
+        "torchmatch",
+        "assignment",
+        "solve"
+      ],
+      "signature": "def solve(cost: torch.Tensor, backend: Backend | str = Backend.AUTO, unpack: bool = False) -\u003e torch.Tensor | tuple[torch.Tensor, ...]",
+      "source": {
+        "file": "torchmatch/assignment/_solve.py",
+        "line": 265
+      },
+      "parent": "torchmatch.assignment"
+    },
+    {
+      "id": "torchmatch.assignment.ops",
+      "kind": "module",
+      "path": [
+        "torchmatch",
+        "assignment",
+        "ops"
+      ],
+      "signature": "module torchmatch.assignment.ops",
+      "summary": "Direct access to ``torch.ops.assignment.*`` ops.",
+      "description": "Each attribute is the corresponding op handle, so callers that want to\npin a specific backend (e.g. for benchmarking or to sidestep the\ndispatcher's AUTO branch) write::\n\n    from torchmatch.assignment.ops import jonker_dense\n\n    result = jonker_dense(cost)",
+      "source": {
+        "file": "torchmatch/assignment/ops.py",
+        "line": 1
+      },
+      "parent": "torchmatch.assignment"
+    },
+    {
+      "id": "torchmatch.assignment.ops.jonker_scalar",
+      "kind": "function",
+      "path": [
+        "torchmatch",
+        "assignment",
+        "ops",
+        "jonker_scalar"
+      ],
+      "signature": "def jonker_scalar(cost: torch.Tensor) -\u003e torch.Tensor",
+      "source": {
+        "file": "torchmatch/assignment/ops.py",
+        "line": 3
+      },
+      "parent": "torchmatch.assignment.ops"
+    },
+    {
+      "id": "torchmatch.assignment.ops.jonker_dense",
+      "kind": "function",
+      "path": [
+        "torchmatch",
+        "assignment",
+        "ops",
+        "jonker_dense"
+      ],
+      "signature": "def jonker_dense(cost: torch.Tensor) -\u003e torch.Tensor",
+      "source": {
+        "file": "torchmatch/assignment/ops.py",
+        "line": 4
+      },
+      "parent": "torchmatch.assignment.ops"
+    },
+    {
+      "id": "torchmatch.assignment.ops.jonker_compact",
+      "kind": "function",
+      "path": [
+        "torchmatch",
+        "assignment",
+        "ops",
+        "jonker_compact"
+      ],
+      "signature": "def jonker_compact(cost: torch.Tensor) -\u003e torch.Tensor",
+      "source": {
+        "file": "torchmatch/assignment/ops.py",
+        "line": 5
+      },
+      "parent": "torchmatch.assignment.ops"
+    },
+    {
+      "id": "torchmatch.assignment.ops.jonker_dense_batch",
+      "kind": "function",
+      "path": [
+        "torchmatch",
+        "assignment",
+        "ops",
+        "jonker_dense_batch"
+      ],
+      "signature": "def jonker_dense_batch(cost: torch.Tensor) -\u003e torch.Tensor",
+      "source": {
+        "file": "torchmatch/assignment/ops.py",
+        "line": 6
+      },
+      "parent": "torchmatch.assignment.ops"
+    },
+    {
+      "id": "torchmatch.assignment.ops.jonker_compact_batch",
+      "kind": "function",
+      "path": [
+        "torchmatch",
+        "assignment",
+        "ops",
+        "jonker_compact_batch"
+      ],
+      "signature": "def jonker_compact_batch(cost: torch.Tensor) -\u003e torch.Tensor",
+      "source": {
+        "file": "torchmatch/assignment/ops.py",
+        "line": 7
+      },
+      "parent": "torchmatch.assignment.ops"
+    },
+    {
+      "id": "torchmatch.assignment.ops.jonker_dense_batch_unpacked",
+      "kind": "function",
+      "path": [
+        "torchmatch",
+        "assignment",
+        "ops",
+        "jonker_dense_batch_unpacked"
+      ],
+      "signature": "def jonker_dense_batch_unpacked(cost: torch.Tensor) -\u003e tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]",
+      "source": {
+        "file": "torchmatch/assignment/ops.py",
+        "line": 8
+      },
+      "parent": "torchmatch.assignment.ops"
+    },
+    {
+      "id": "torchmatch.assignment.ops.jonker_compact_batch_unpacked",
+      "kind": "function",
+      "path": [
+        "torchmatch",
+        "assignment",
+        "ops",
+        "jonker_compact_batch_unpacked"
+      ],
+      "signature": "def jonker_compact_batch_unpacked(cost: torch.Tensor) -\u003e tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]",
+      "source": {
+        "file": "torchmatch/assignment/ops.py",
+        "line": 11
+      },
+      "parent": "torchmatch.assignment.ops"
+    },
+    {
+      "id": "torchmatch.assignment.ops.greedy",
+      "kind": "function",
+      "path": [
+        "torchmatch",
+        "assignment",
+        "ops",
+        "greedy"
+      ],
+      "signature": "def greedy(cost: torch.Tensor) -\u003e torch.Tensor",
+      "source": {
+        "file": "torchmatch/assignment/ops.py",
+        "line": 20
+      },
+      "parent": "torchmatch.assignment.ops"
+    },
+    {
+      "id": "torchmatch.assignment.ops.munkres",
+      "kind": "function",
+      "path": [
+        "torchmatch",
+        "assignment",
+        "ops",
+        "munkres"
+      ],
+      "signature": "def munkres(cost: torch.Tensor) -\u003e torch.Tensor",
+      "source": {
+        "file": "torchmatch/assignment/ops.py",
+        "line": 17
+      },
+      "parent": "torchmatch.assignment.ops"
+    },
+    {
+      "id": "torchmatch.assignment.ops.hybrid",
+      "kind": "function",
+      "path": [
+        "torchmatch",
+        "assignment",
+        "ops",
+        "hybrid"
+      ],
+      "signature": "def hybrid(cost: torch.Tensor) -\u003e torch.Tensor",
+      "source": {
+        "file": "torchmatch/assignment/ops.py",
+        "line": 18
+      },
+      "parent": "torchmatch.assignment.ops"
+    },
+    {
+      "id": "torchmatch.assignment.ops.lawler",
+      "kind": "function",
+      "path": [
+        "torchmatch",
+        "assignment",
+        "ops",
+        "lawler"
+      ],
+      "signature": "def lawler(cost: torch.Tensor) -\u003e torch.Tensor",
+      "source": {
+        "file": "torchmatch/assignment/ops.py",
+        "line": 19
+      },
+      "parent": "torchmatch.assignment.ops"
+    },
+    {
+      "id": "torchmatch.bench",
+      "kind": "module",
+      "path": [
+        "torchmatch",
+        "bench"
+      ],
+      "signature": "module torchmatch.bench",
+      "summary": "Benchmark collection CLI.",
+      "description": "Helpers to capture a pytest-benchmark sweep on the local machine,\nscrub host-identifying fields, and write the result under\n``benchmarks/results/\u003cslug\u003e/`` with a canonical filename that\nencodes the torchmatch / Python / PyTorch versions and the CUDA\nwheel variant.\n\nThe full contributor flow is :func:`init_machine` (once) +\n:func:`collect_run` (once per release). The aggregator under\n``scripts/benchmark_aggregate.py`` then turns the per-machine\nfiles into the JSON datasets that the docs site consumes.",
+      "source": {
+        "file": "torchmatch/bench/__init__.py",
+        "line": 1
+      },
+      "parent": "torchmatch"
+    },
+    {
+      "id": "torchmatch.bench.collect_run",
+      "kind": "function",
+      "path": [
+        "torchmatch",
+        "bench",
+        "collect_run"
+      ],
+      "signature": "def collect_run(results_root: Path, slug: str | None = None, tests_dir: Path | None = None, extra_pytest_args: Sequence[str] = (), run_id: str | None = None) -\u003e Path",
+      "summary": "Run the benchmark sweep and write a scrubbed JSON to the slug dir.",
+      "description": "``slug`` defaults to a unique directory under ``results_root``\ncontaining a ``machine.json`` (auto-detection). ``tests_dir`` defaults\nto ``\u003ccwd\u003e/tests``. Returns the path of the written file.",
+      "source": {
+        "file": "torchmatch/bench/_collect.py",
+        "line": 35
+      },
+      "parent": "torchmatch.bench"
+    },
+    {
+      "id": "torchmatch.bench.current_run_id",
+      "kind": "function",
+      "path": [
+        "torchmatch",
+        "bench",
+        "current_run_id"
+      ],
+      "signature": "def current_run_id() -\u003e str",
+      "summary": "Filename (sans .json) for a run captured right now on this interpreter.",
+      "source": {
+        "file": "torchmatch/bench/_filename.py",
+        "line": 73
+      },
+      "parent": "torchmatch.bench"
+    },
+    {
+      "id": "torchmatch.bench.detect_variant",
+      "kind": "function",
+      "path": [
+        "torchmatch",
+        "bench",
+        "detect_variant"
+      ],
+      "signature": "def detect_variant() -\u003e str",
+      "summary": "Map the running PyTorch build to a wheel-variant tag.",
+      "description": "Returns 'cpu' for CPU-only builds; 'cuXYZ' otherwise (matches the\nwheel suffixes produced by release.yml).",
+      "source": {
+        "file": "torchmatch/bench/_filename.py",
+        "line": 22
+      },
+      "parent": "torchmatch.bench"
+    },
+    {
+      "id": "torchmatch.bench.make_filename",
+      "kind": "function",
+      "path": [
+        "torchmatch",
+        "bench",
+        "make_filename"
+      ],
+      "signature": "def make_filename(version: str, py: str, torch_ver: str, variant: str, ts: str) -\u003e str",
+      "source": {
+        "file": "torchmatch/bench/_filename.py",
+        "line": 62
+      },
+      "parent": "torchmatch.bench"
+    },
+    {
+      "id": "torchmatch.bench.parse_filename",
+      "kind": "function",
+      "path": [
+        "torchmatch",
+        "bench",
+        "parse_filename"
+      ],
+      "signature": "def parse_filename(name: str) -\u003e dict | None",
+      "summary": "Reverse a canonical filename into its component dict, or None.",
+      "source": {
+        "file": "torchmatch/bench/_filename.py",
+        "line": 85
+      },
+      "parent": "torchmatch.bench"
+    },
+    {
+      "id": "torchmatch.bench.build_slug",
+      "kind": "function",
+      "path": [
+        "torchmatch",
+        "bench",
+        "build_slug"
+      ],
+      "signature": "def build_slug(machine_type: MachineType, cpu_short: str, gpu_short: str | None) -\u003e str",
+      "summary": "Compose the flat slug used as the per-machine directory name.",
+      "source": {
+        "file": "torchmatch/bench/_machine.py",
+        "line": 140
+      },
+      "parent": "torchmatch.bench"
+    },
+    {
+      "id": "torchmatch.bench.detect_machine",
+      "kind": "function",
+      "path": [
+        "torchmatch",
+        "bench",
+        "detect_machine"
+      ],
+      "signature": "def detect_machine(machine_type: MachineType) -\u003e dict",
+      "summary": "Full machine.json payload for the local box.",
+      "source": {
+        "file": "torchmatch/bench/_machine.py",
+        "line": 150
+      },
+      "parent": "torchmatch.bench"
+    },
+    {
+      "id": "torchmatch.bench.init_machine",
+      "kind": "function",
+      "path": [
+        "torchmatch",
+        "bench",
+        "init_machine"
+      ],
+      "signature": "def init_machine(results_root: Path, machine_type: MachineType | None = None, submitted_by: str = '', notes: str = '', interactive: bool = True, force: bool = False) -\u003e Path",
+      "summary": "Write benchmarks/results/\u003cslug\u003e/machine.json and return its path.",
+      "description": "If a machine.json already exists at the derived slug, refuses to\noverwrite unless ``force=True``.",
+      "source": {
+        "file": "torchmatch/bench/_machine.py",
+        "line": 189
+      },
+      "parent": "torchmatch.bench"
+    },
+    {
+      "id": "torchmatch.bench.short_name",
+      "kind": "function",
+      "path": [
+        "torchmatch",
+        "bench",
+        "short_name"
+      ],
+      "signature": "def short_name(brand: str) -\u003e str",
+      "summary": "Normalize a noisy CPU/GPU brand string to a filesystem-safe short slug.",
+      "description": "Drops marketing tokens (\"(R)\", \"(TM)\", \"Core\", \"Processor\", \"Laptop GPU\",\n\"GeForce\"...) and runs of non-alphanumerics. Lowercased.\n\nExamples:\n    '12th Gen Intel(R) Core(TM) i7-12700H' -\u003e 'intel-i7-12700h'\n    'AMD Ryzen 9 9950X 16-Core Processor'  -\u003e 'amd-ryzen-9-9950x'\n    'NVIDIA RTX A1000 Laptop GPU'          -\u003e 'nvidia-rtx-a1000'",
+      "source": {
+        "file": "torchmatch/bench/_machine.py",
+        "line": 33
+      },
+      "parent": "torchmatch.bench"
+    },
+    {
+      "id": "torchmatch.bench.scrub_machine_info",
+      "kind": "function",
+      "path": [
+        "torchmatch",
+        "bench",
+        "scrub_machine_info"
+      ],
+      "signature": "def scrub_machine_info(data: dict, extra_tokens: list[str] | None = None) -\u003e dict",
+      "summary": "Drop hostname/kernel fields in-place and redact stray hostname strings.",
+      "description": "Returns the same dict for convenience. Idempotent.",
+      "source": {
+        "file": "torchmatch/bench/_scrub.py",
+        "line": 40
+      },
+      "parent": "torchmatch.bench"
+    },
+    {
+      "id": "torchmatch.transport",
+      "kind": "module",
+      "path": [
+        "torchmatch",
+        "transport"
+      ],
+      "signature": "module torchmatch.transport",
+      "summary": "Continuous optimal-transport (OT) solvers.",
+      "description": "Two sub-packages:\n\n- :mod:`torchmatch.transport.matrix`: cost-matrix in, plan / divergence\n  out. The primary dispatcher; mirrors :mod:`torchmatch.assignment`.\n- :mod:`torchmatch.transport.samples`: point-clouds in, scalar loss\n  out. Backed by Triton kernels (CUDA-only).\n\nSee ``docs/superpowers/specs/2026-05-21-transport-ops-design.md``.",
+      "source": {
+        "file": "torchmatch/transport/__init__.py",
+        "line": 1
+      },
+      "parent": "torchmatch"
+    },
+    {
+      "id": "torchmatch.transport.load_cpu",
+      "kind": "function",
+      "path": [
+        "torchmatch",
+        "transport",
+        "load_cpu"
+      ],
+      "signature": "def load_cpu() -\u003e None",
+      "summary": "Register ``torch.ops.transport.*`` (CPU backend).",
+      "description": "Always registers the Python-side Sinkhorn custom_ops; additionally\nloads the C++ ``exact_emd`` extension when a prebuilt ``.so`` is\nshipped in the wheel or a C++ toolchain is available for the JIT\nfallback. With ``TORCHMATCH_SKIP_TRANSPORT=1`` at build time and no\ntoolchain at install, the extension is absent and EXACT_EMD fails\nwith a targeted RuntimeError at call time; the Sinkhorn backends\nkeep working. Set ``TORCHMATCH_DEBUG_LOADER=1`` to surface the\nunderlying JIT failure when diagnosing a partially-broken extension.",
+      "source": {
+        "file": "torchmatch/transport/matrix/_cpu.py",
+        "line": 55
+      },
+      "parent": "torchmatch.transport"
+    },
+    {
+      "id": "torchmatch.transport.load_cuda",
+      "kind": "function",
+      "path": [
+        "torchmatch",
+        "transport",
+        "load_cuda"
+      ],
+      "signature": "def load_cuda() -\u003e None",
+      "source": {
+        "file": "torchmatch/transport/matrix/_cuda.py",
+        "line": 24
+      },
+      "parent": "torchmatch.transport"
+    },
+    {
+      "id": "torchmatch.transport.matrix",
+      "kind": "module",
+      "path": [
+        "torchmatch",
+        "transport",
+        "matrix"
+      ],
+      "signature": "module torchmatch.transport.matrix",
+      "summary": "Cost-matrix optimal-transport solvers.",
+      "description": "Takes a (B, N, M) cost matrix and returns a transport plan (or scalar\ndivergence). The dispatcher pattern mirrors :mod:`torchmatch.assignment`.\n\nSee ``docs/superpowers/specs/2026-05-21-transport-ops-design.md``.",
+      "source": {
+        "file": "torchmatch/transport/matrix/__init__.py",
+        "line": 1
+      },
+      "parent": "torchmatch.transport"
+    },
+    {
+      "id": "torchmatch.transport.matrix.Backend",
+      "kind": "type",
+      "path": [
+        "torchmatch",
+        "transport",
+        "matrix",
+        "Backend"
+      ],
+      "signature": "class Backend(StrEnum):",
+      "source": {
+        "file": "torchmatch/transport/matrix/_solve.py",
+        "line": 43
+      },
+      "parent": "torchmatch.transport.matrix"
+    },
+    {
+      "id": "torchmatch.transport.matrix.Backend.AUTO",
+      "kind": "constant",
+      "path": [
+        "torchmatch",
+        "transport",
+        "matrix",
+        "Backend",
+        "AUTO"
+      ],
+      "signature": "AUTO = 'auto'",
+      "source": {
+        "file": "torchmatch/transport/matrix/_solve.py",
+        "line": 44
+      },
+      "parent": "torchmatch.transport.matrix.Backend"
+    },
+    {
+      "id": "torchmatch.transport.matrix.Backend.LOG_SINKHORN",
+      "kind": "constant",
+      "path": [
+        "torchmatch",
+        "transport",
+        "matrix",
+        "Backend",
+        "LOG_SINKHORN"
+      ],
+      "signature": "LOG_SINKHORN = 'log_sinkhorn'",
+      "source": {
+        "file": "torchmatch/transport/matrix/_solve.py",
+        "line": 45
+      },
+      "parent": "torchmatch.transport.matrix.Backend"
+    },
+    {
+      "id": "torchmatch.transport.matrix.Backend.SINKHORN_DIVERGENCE",
+      "kind": "constant",
+      "path": [
+        "torchmatch",
+        "transport",
+        "matrix",
+        "Backend",
+        "SINKHORN_DIVERGENCE"
+      ],
+      "signature": "SINKHORN_DIVERGENCE = 'sinkhorn_divergence'",
+      "source": {
+        "file": "torchmatch/transport/matrix/_solve.py",
+        "line": 46
+      },
+      "parent": "torchmatch.transport.matrix.Backend"
+    },
+    {
+      "id": "torchmatch.transport.matrix.Backend.UNBALANCED_SINKHORN",
+      "kind": "constant",
+      "path": [
+        "torchmatch",
+        "transport",
+        "matrix",
+        "Backend",
+        "UNBALANCED_SINKHORN"
+      ],
+      "signature": "UNBALANCED_SINKHORN = 'unbalanced_sinkhorn'",
+      "source": {
+        "file": "torchmatch/transport/matrix/_solve.py",
+        "line": 47
+      },
+      "parent": "torchmatch.transport.matrix.Backend"
+    },
+    {
+      "id": "torchmatch.transport.matrix.Backend.EXACT_EMD",
+      "kind": "constant",
+      "path": [
+        "torchmatch",
+        "transport",
+        "matrix",
+        "Backend",
+        "EXACT_EMD"
+      ],
+      "signature": "EXACT_EMD = 'exact_emd'",
+      "source": {
+        "file": "torchmatch/transport/matrix/_solve.py",
+        "line": 48
+      },
+      "parent": "torchmatch.transport.matrix.Backend"
+    },
+    {
+      "id": "torchmatch.transport.matrix.marginal_error",
+      "kind": "function",
+      "path": [
+        "torchmatch",
+        "transport",
+        "matrix",
+        "marginal_error"
+      ],
+      "signature": "def marginal_error(log_plan: torch.Tensor, a: torch.Tensor, b: torch.Tensor) -\u003e tuple[float, float]",
+      "summary": "Compute the max marginal error of a log-domain transport plan.",
+      "description": "Useful for checking Sinkhorn convergence quality after ``solve()``.\nWorks with any backend that returns a log-plan (``LOG_SINKHORN``,\n``UNBALANCED_SINKHORN``, ``EXACT_EMD``).",
+      "params": [
+        {
+          "name": "log_plan",
+          "type": "torch.Tensor",
+          "doc": "Log-domain transport plan (B, N, M) or (N, M), as returned by\n``solve()``."
+        },
+        {
+          "name": "a",
+          "type": "torch.Tensor",
+          "doc": "Source marginals (B, N) or (N,). Must match the ``a`` passed to\n``solve()``, or uniform weights if ``a=None`` was used."
+        },
+        {
+          "name": "b",
+          "type": "torch.Tensor",
+          "doc": "Target marginals (B, M) or (M,)."
+        }
+      ],
+      "returns": {
+        "type": "(row_err, col_err)",
+        "doc": "Max absolute deviation of plan row-sums and col-sums from ``a``\nand ``b``, respectively."
+      },
+      "source": {
+        "file": "torchmatch/transport/matrix/_solve.py",
+        "line": 231
+      },
+      "parent": "torchmatch.transport.matrix"
+    },
+    {
+      "id": "torchmatch.transport.matrix.solve",
+      "kind": "function",
+      "path": [
+        "torchmatch",
+        "transport",
+        "matrix",
+        "solve"
+      ],
+      "signature": "def solve(cost: torch.Tensor, backend: Backend | str = Backend.AUTO, reg: float = 0.1, n_iter: int = 100, mask: torch.Tensor | None = None, a: torch.Tensor | None = None, b: torch.Tensor | None = None, scaling: float | None = None, rho: float = 1.0, cost_aa: torch.Tensor | None = None, cost_bb: torch.Tensor | None = None, unpack: bool = False) -\u003e torch.Tensor | tuple[torch.Tensor, torch.Tensor | None, torch.Tensor | None]",
+      "source": {
+        "file": "torchmatch/transport/matrix/_solve.py",
+        "line": 98
+      },
+      "parent": "torchmatch.transport.matrix"
+    },
+    {
+      "id": "torchmatch.transport.matrix.ops",
+      "kind": "module",
+      "path": [
+        "torchmatch",
+        "transport",
+        "matrix",
+        "ops"
+      ],
+      "signature": "module torchmatch.transport.matrix.ops",
+      "summary": "Direct handles for torch.ops.transport.* matrix-face ops.",
+      "source": {
+        "file": "torchmatch/transport/matrix/ops.py",
+        "line": 1
+      },
+      "parent": "torchmatch.transport.matrix"
+    },
+    {
+      "id": "torchmatch.transport.matrix.ops.exact_emd",
+      "kind": "function",
+      "path": [
+        "torchmatch",
+        "transport",
+        "matrix",
+        "ops",
+        "exact_emd"
+      ],
+      "signature": "def exact_emd(cost: torch.Tensor, mask: torch.Tensor | None = None, a: torch.Tensor | None = None, b: torch.Tensor | None = None) -\u003e torch.Tensor",
+      "source": {
+        "file": "torchmatch/transport/matrix/ops.py",
+        "line": 3
+      },
+      "parent": "torchmatch.transport.matrix.ops"
+    },
+    {
+      "id": "torchmatch.transport.matrix.ops.log_sinkhorn",
+      "kind": "function",
+      "path": [
+        "torchmatch",
+        "transport",
+        "matrix",
+        "ops",
+        "log_sinkhorn"
+      ],
+      "signature": "def log_sinkhorn(cost: torch.Tensor, eps: float, n_iter: int, a: torch.Tensor, b: torch.Tensor, mask: torch.Tensor | None = None, scaling: float | None = None) -\u003e torch.Tensor",
+      "source": {
+        "file": "torchmatch/transport/matrix/ops.py",
+        "line": 9
+      },
+      "parent": "torchmatch.transport.matrix.ops"
+    },
+    {
+      "id": "torchmatch.transport.matrix.ops.sinkhorn_divergence",
+      "kind": "function",
+      "path": [
+        "torchmatch",
+        "transport",
+        "matrix",
+        "ops",
+        "sinkhorn_divergence"
+      ],
+      "signature": "def sinkhorn_divergence(cost: torch.Tensor, eps: float, n_iter: int, a: torch.Tensor, b: torch.Tensor, mask: torch.Tensor | None = None, scaling: float | None = None, cost_aa: torch.Tensor | None = None, cost_bb: torch.Tensor | None = None) -\u003e torch.Tensor",
+      "source": {
+        "file": "torchmatch/transport/matrix/ops.py",
+        "line": 18
+      },
+      "parent": "torchmatch.transport.matrix.ops"
+    },
+    {
+      "id": "torchmatch.transport.matrix.ops.unbalanced_sinkhorn",
+      "kind": "function",
+      "path": [
+        "torchmatch",
+        "transport",
+        "matrix",
+        "ops",
+        "unbalanced_sinkhorn"
+      ],
+      "signature": "def unbalanced_sinkhorn(cost: torch.Tensor, eps: float, n_iter: int, rho: float, a: torch.Tensor, b: torch.Tensor, mask: torch.Tensor | None = None, scaling: float | None = None) -\u003e torch.Tensor",
+      "source": {
+        "file": "torchmatch/transport/matrix/ops.py",
+        "line": 29
+      },
+      "parent": "torchmatch.transport.matrix.ops"
+    },
+    {
+      "id": "torchmatch.transport.samples",
+      "kind": "module",
+      "path": [
+        "torchmatch",
+        "transport",
+        "samples"
+      ],
+      "signature": "module torchmatch.transport.samples",
+      "summary": "Samples-face optimal transport.",
+      "description": "Point clouds in, scalar OT cost / divergence out. Requires CUDA +\nTriton. See ``docs/superpowers/specs/2026-05-21-transport-ops-design.md``.",
+      "source": {
+        "file": "torchmatch/transport/samples/__init__.py",
+        "line": 1
+      },
+      "parent": "torchmatch.transport"
+    },
+    {
+      "id": "torchmatch.transport.samples.loss",
+      "kind": "function",
+      "path": [
+        "torchmatch",
+        "transport",
+        "samples",
+        "loss"
+      ],
+      "signature": "def loss(x: torch.Tensor, y: torch.Tensor, blur: float = 0.05, debias: bool = False, reach: float | None = None, reach_x: float | None = None, reach_y: float | None = None, a: torch.Tensor | None = None, b: torch.Tensor | None = None, scaling: float = 0.5, n_iter: int | None = None, threshold: float | None = None, half_cost: bool = False, p: int = 2) -\u003e torch.Tensor",
+      "summary": "Scalar OT cost / divergence over point clouds (CUDA only).",
+      "params": [
+        {
+          "name": "x",
+          "type": "torch.Tensor",
+          "doc": "Source point cloud (n, d), float32, CUDA."
+        },
+        {
+          "name": "y",
+          "type": "torch.Tensor",
+          "doc": "Target point cloud (m, d), float32, CUDA."
+        },
+        {
+          "name": "blur",
+          "type": "float",
+          "default": "0.05",
+          "doc": "Bandwidth parameter; the entropy regularization is ``eps = blur**2``."
+        },
+        {
+          "name": "debias",
+          "type": "bool",
+          "default": "False",
+          "doc": "If True, returns the Sinkhorn divergence\n``S_eps(x,y) - 0.5*S_eps(x,x) - 0.5*S_eps(y,y)`` which vanishes\nwhen ``x == y`` (unbiased). Requires three Sinkhorn solves."
+        },
+        {
+          "name": "reach",
+          "type": "float | None",
+          "default": "None",
+          "doc": "Unbalanced OT: KL marginal penalty ``rho = reach**2`` applied to\nboth source and target. ``None`` = balanced OT."
+        },
+        {
+          "name": "reach_x",
+          "type": "float | None",
+          "default": "None",
+          "doc": "Semi-unbalanced: KL penalty for the source marginal only."
+        },
+        {
+          "name": "reach_y",
+          "type": "float | None",
+          "default": "None",
+          "doc": "Semi-unbalanced: KL penalty for the target marginal only."
+        },
+        {
+          "name": "a",
+          "type": "torch.Tensor | None",
+          "default": "None",
+          "doc": "Source weights (n,). Uniform if None."
+        },
+        {
+          "name": "b",
+          "type": "torch.Tensor | None",
+          "default": "None",
+          "doc": "Target weights (m,). Uniform if None."
+        },
+        {
+          "name": "scaling",
+          "type": "float",
+          "default": "0.5",
+          "doc": "Geometric decay factor for the epsilon schedule, in ``(0, 1)``.\nSmaller values converge faster but may be less numerically stable."
+        },
+        {
+          "name": "n_iter",
+          "type": "int | None",
+          "default": "None",
+          "doc": "Not supported; always raises. Control iterations via ``scaling``."
+        },
+        {
+          "name": "threshold",
+          "type": "float | None",
+          "default": "None",
+          "doc": "Early-stopping threshold on potential change. Incompatible with\n``torch.compile`` (forces a host sync each check)."
+        },
+        {
+          "name": "half_cost",
+          "type": "bool",
+          "default": "False",
+          "doc": "If True, uses ``cost = 0.5 * ||x - y||²`` instead of ``||x - y||²``."
+        },
+        {
+          "name": "p",
+          "type": "int",
+          "default": "2",
+          "doc": "Cost exponent. Only ``p=2`` is supported."
+        }
+      ],
+      "returns": {
+        "type": "loss",
+        "doc": "Scalar OT cost (shape ``()`` for 2-D input; ``(B,)`` for 3-D batch)."
+      },
+      "source": {
+        "file": "torchmatch/transport/samples/_loss.py",
+        "line": 52
+      },
+      "parent": "torchmatch.transport.samples"
+    },
+    {
+      "id": "torchmatch.transport.samples.kernels",
+      "kind": "module",
+      "path": [
+        "torchmatch",
+        "transport",
+        "samples",
+        "kernels"
+      ],
+      "signature": "module torchmatch.transport.samples.kernels",
+      "summary": "Triton kernels for streaming optimal transport.",
+      "source": {
+        "file": "torchmatch/transport/samples/kernels/__init__.py",
+        "line": 1
+      },
+      "parent": "torchmatch.transport.samples"
+    },
+    {
+      "id": "torchmatch.transport.samples.kernels.apply_fused_sqeuclid",
+      "kind": "module",
+      "path": [
+        "torchmatch",
+        "transport",
+        "samples",
+        "kernels",
+        "apply_fused_sqeuclid"
+      ],
+      "signature": "module torchmatch.transport.samples.kernels.apply_fused_sqeuclid",
+      "summary": "Fused Schur complement matvec kernel for HVP CG acceleration.",
+      "description": "This module implements a two-phase persistent kernel that fuses the axis1 and axis0\ntransport plan applications used in the HVP's CG linear operator, reducing kernel\nlaunches from 2 to 1 per CG iteration.\n\nThe key innovation is using a spin-wait barrier with atomic counter for grid-wide\nsynchronization between phases, allowing both operations to run in a single kernel.\n\nIMPORTANT: The spin barrier requires all blocks to be co-resident on the GPU.\nIf grid_size exceeds the maximum resident blocks (num_SMs * ~4), the kernel\nwill deadlock. This module automatically falls back to the two-kernel approach\nwhen the grid size would be too large.",
+      "source": {
+        "file": "torchmatch/transport/samples/kernels/apply_fused_sqeuclid.py",
+        "line": 1
+      },
+      "parent": "torchmatch.transport.samples.kernels"
+    },
+    {
+      "id": "torchmatch.transport.samples.kernels.apply_fused_sqeuclid.fused_schur_matvec_sqeuclid",
+      "kind": "function",
+      "path": [
+        "torchmatch",
+        "transport",
+        "samples",
+        "kernels",
+        "apply_fused_sqeuclid",
+        "fused_schur_matvec_sqeuclid"
+      ],
+      "signature": "def fused_schur_matvec_sqeuclid(x: torch.Tensor, y: torch.Tensor, f: torch.Tensor, g: torch.Tensor, z: torch.Tensor, diag_x: torch.Tensor, denom: torch.Tensor, eps: float, x2: torch.Tensor | None = None, y2: torch.Tensor | None = None, piz_buffer: torch.Tensor | None = None, block_m: int = 64, block_n: int = 64, block_k: int = 64, num_warps: int = 4, num_stages: int = 2, use_exp2: bool = True, allow_tf32: bool = False) -\u003e tuple[torch.Tensor, torch.Tensor]",
+      "summary": "Fused Schur complement matvec: out = denom * z - P^T @ (P @ z / diag_x).",
+      "description": "This is a single-kernel implementation that fuses two transport plan applications\n(axis1 and axis0) with a grid-wide barrier for synchronization.\n\nArgs:\n    x: Source points (n, d)\n    y: Target points (m, d)\n    f: Source potential (n,) - raw-form: P = exp((f+g-C)/eps)\n    g: Target potential (m,) - raw-form: P = exp((f+g-C)/eps)\n    z: Input CG vector (m,)\n    diag_x: Source diagonal D_x = diag_factor_x * a_hat (n,)\n    denom: Target denominator D_y = diag_factor_y * b_hat + eps*tau2 (m,)\n    eps: Entropy regularization\n    x2: Precomputed ||x||^2 (n,) [optional]\n    y2: Precomputed ||y||^2 (m,) [optional]\n    piz_buffer: Reusable buffer for P @ z intermediate (n,) [optional]\n\nReturns:\n    out: Result denom * z - P^T @ (P @ z / diag_x), shape (m,)\n    piz_buffer: The intermediate buffer (for reuse)\n\nNote:\n    This kernel uses a spin-wait barrier for grid-wide synchronization.\n    The grid size must not exceed the number of co-resident blocks on the GPU.\n    If the grid would be too large, this function automatically falls back to\n    a two-kernel approach using apply_plan_vec_shifted (axis=1, then axis=0).\n\n    The fallback path converts raw potentials to shifted form and uses shifted-form apply kernels.",
+      "source": {
+        "file": "torchmatch/transport/samples/kernels/apply_fused_sqeuclid.py",
+        "line": 338
+      },
+      "parent": "torchmatch.transport.samples.kernels.apply_fused_sqeuclid"
+    },
+    {
+      "id": "torchmatch.transport.samples.kernels.apply_raw",
+      "kind": "module",
+      "path": [
+        "torchmatch",
+        "transport",
+        "samples",
+        "kernels",
+        "apply_raw"
+      ],
+      "signature": "module torchmatch.transport.samples.kernels.apply_raw",
+      "summary": "raw-form apply kernels (mat5 for HVP, deprecated vec/mat wrappers).",
+      "description": "This module contains:\n- mat5_sqeuclid: Active kernel for HVP computation (P_ij * (A_i . y_j) * y_j)\n- apply_plan_vec_sqeuclid: Deprecated, delegates to shifted-form\n- apply_plan_mat_sqeuclid: Deprecated, delegates to shifted-form\n\nThe mat5 kernel uses raw-form potentials (f, g include absorbed log marginals).\nThe deprecated wrappers convert raw potentials to shifted form and call shifted-form.",
+      "source": {
+        "file": "torchmatch/transport/samples/kernels/apply_raw.py",
+        "line": 1
+      },
+      "parent": "torchmatch.transport.samples.kernels"
+    },
+    {
+      "id": "torchmatch.transport.samples.kernels.apply_raw.apply_plan_vec_sqeuclid",
+      "kind": "function",
+      "path": [
+        "torchmatch",
+        "transport",
+        "samples",
+        "kernels",
+        "apply_raw",
+        "apply_plan_vec_sqeuclid"
+      ],
+      "signature": "def apply_plan_vec_sqeuclid(x: torch.Tensor, y: torch.Tensor, f: torch.Tensor, g: torch.Tensor, vec: torch.Tensor, eps: float, axis: int, cost_scale: float = 1.0, x2: torch.Tensor | None = None, y2: torch.Tensor | None = None, log_a: torch.Tensor | None = None, log_b: torch.Tensor | None = None, block_m: int | None = None, block_n: int | None = None, block_k: int | None = None, num_warps: int = 4, num_stages: int = 2, use_exp2: bool = True, allow_tf32: bool = False, autotune: bool = True) -\u003e torch.Tensor",
+      "summary": "Apply P or Pt to a vector without materializing P (streaming, stable).",
+      "description": ".. deprecated::\n    Use :func:`apply_plan_vec_shifted` instead for better performance\n    with shifted-form shifted potentials.\n\nComputes:\n  axis=1: out[i] = sum_j exp((f_i + g_j - cost_scale*C_ij)/eps) * vec[j]\n  axis=0: out[j] = sum_i exp((f_i + g_j - cost_scale*C_ij)/eps) * vec[i]\n\nArgs:\n    f: raw-form source potential [n] (includes absorbed log marginal)\n    g: raw-form target potential [m] (includes absorbed log marginal)\n    log_a: Optional log source weights [n]. If None, assumes uniform (log(1/n)).\n    log_b: Optional log target weights [m]. If None, assumes uniform (log(1/m)).\n    cost_scale: Scaling for cost function. 1.0 for full ||x-y||^2, 0.5 for half.\n    autotune: If True (default), use autotuned kernel configs for best performance.\n              If False, use manual block sizes (useful for reproducible benchmarks).",
+      "source": {
+        "file": "torchmatch/transport/samples/kernels/apply_raw.py",
+        "line": 221
+      },
+      "parent": "torchmatch.transport.samples.kernels.apply_raw"
+    },
+    {
+      "id": "torchmatch.transport.samples.kernels.apply_raw.apply_plan_mat_sqeuclid",
+      "kind": "function",
+      "path": [
+        "torchmatch",
+        "transport",
+        "samples",
+        "kernels",
+        "apply_raw",
+        "apply_plan_mat_sqeuclid"
+      ],
+      "signature": "def apply_plan_mat_sqeuclid(x: torch.Tensor, y: torch.Tensor, f: torch.Tensor, g: torch.Tensor, mat: torch.Tensor, eps: float, axis: int, cost_scale: float = 1.0, scale: torch.Tensor | None = None, x2: torch.Tensor | None = None, y2: torch.Tensor | None = None, log_a: torch.Tensor | None = None, log_b: torch.Tensor | None = None, block_m: int | None = None, block_n: int | None = None, block_k: int | None = None, block_d: int | None = None, num_warps: int = 4, num_stages: int = 2, use_exp2: bool = True, allow_tf32: bool = False, autotune: bool = True) -\u003e torch.Tensor",
+      "summary": "Apply P or Pt to a matrix without materializing P (streaming, stable).",
+      "description": ".. deprecated::\n    Use :func:`apply_plan_mat_shifted` instead for better performance\n    with shifted-form shifted potentials.\n\nComputes:\n  axis=1: out[i, :] = sum_j exp((f_i + g_j - cost_scale*C_ij)/eps) * mat[j, :]\n  axis=0: out[j, :] = sum_i exp((f_i + g_j - cost_scale*C_ij)/eps) * mat[i, :]\n\nIf ``scale`` is provided (axis=1 only), the kernel uses `mat[j,:] * scale[j]`\non the fly (avoids allocating `mat * scale[:,None]`).\n\nArgs:\n    f: raw-form source potential [n] (includes absorbed log marginal)\n    g: raw-form target potential [m] (includes absorbed log marginal)\n    log_a: Optional log source weights [n]. If None, assumes uniform (log(1/n)).\n    log_b: Optional log target weights [m]. If None, assumes uniform (log(1/m)).\n    cost_scale: Scaling for cost function. 1.0 for full ||x-y||^2, 0.5 for half.\n    autotune: If True (default), use autotuned kernel configs for best performance.\n              If False, use manual block sizes (useful for reproducible benchmarks).",
+      "source": {
+        "file": "torchmatch/transport/samples/kernels/apply_raw.py",
+        "line": 342
+      },
+      "parent": "torchmatch.transport.samples.kernels.apply_raw"
+    },
+    {
+      "id": "torchmatch.transport.samples.kernels.apply_raw.mat5_sqeuclid",
+      "kind": "function",
+      "path": [
+        "torchmatch",
+        "transport",
+        "samples",
+        "kernels",
+        "apply_raw",
+        "mat5_sqeuclid"
+      ],
+      "signature": "def mat5_sqeuclid(x: torch.Tensor, y: torch.Tensor, f: torch.Tensor, g: torch.Tensor, A: torch.Tensor, eps: float, cost_scale: float = 1.0, x2: torch.Tensor | None = None, y2: torch.Tensor | None = None, block_m: int | None = None, block_n: int | None = None, block_k: int | None = None, num_warps: int = 4, num_stages: int = 2, use_exp2: bool = True, allow_tf32: bool = False, autotune: bool = True) -\u003e torch.Tensor",
+      "summary": "Compute Mat5 term for HVP: Mat5 = (-4*cost_scale/eps) * sum_j P_ij (A_i.y_j) y_j.",
+      "description": "Args:\n    autotune: If True (default), use autotuned kernel configs for best performance.\n              If False, use manual block sizes (useful for reproducible benchmarks).",
+      "source": {
+        "file": "torchmatch/transport/samples/kernels/apply_raw.py",
+        "line": 492
+      },
+      "parent": "torchmatch.transport.samples.kernels.apply_raw"
+    },
+    {
+      "id": "torchmatch.transport.samples.kernels.apply_shifted",
+      "kind": "module",
+      "path": [
+        "torchmatch",
+        "transport",
+        "samples",
+        "kernels",
+        "apply_shifted"
+      ],
+      "signature": "module torchmatch.transport.samples.kernels.apply_shifted",
+      "summary": "shifted-form apply kernels (shifted potentials, s_I cancellation).",
+      "description": "This module contains streaming P @ V and P @ vec kernels that work with\nSHIFTED potentials directly (f_hat = f - alpha, g_hat = g - beta), avoiding\nthe cost of converting between potential conventions.\n\nKernels:\n- apply_plan_mat_shifted: P @ mat or P^T @ mat (2D grid, tiles over D)\n- apply_plan_vec_shifted: P @ vec or P^T @ vec (1D grid, s_I cancellation)\n\nKey insight: Compute score WITHOUT f_hat/g_hat in the tiled loop, then apply\nrow/column marginal correction at the end. This is the same numerical trick as\nthe online-softmax correction factor used in streaming attention kernels.",
+      "source": {
+        "file": "torchmatch/transport/samples/kernels/apply_shifted.py",
+        "line": 1
+      },
+      "parent": "torchmatch.transport.samples.kernels"
+    },
+    {
+      "id": "torchmatch.transport.samples.kernels.apply_shifted.apply_plan_mat_shifted",
+      "kind": "function",
+      "path": [
+        "torchmatch",
+        "transport",
+        "samples",
+        "kernels",
+        "apply_shifted",
+        "apply_plan_mat_shifted"
+      ],
+      "signature": "def apply_plan_mat_shifted(x: torch.Tensor, y: torch.Tensor, f_hat: torch.Tensor, g_hat: torch.Tensor, log_a: torch.Tensor, log_b: torch.Tensor, mat: torch.Tensor, eps: float, axis: int, cost_scale: float = 1.0, scale: torch.Tensor | None = None, block_m: int | None = None, block_n: int | None = None, block_k: int | None = None, block_d: int | None = None, num_warps: int = 4, num_stages: int = 2, use_exp2: bool = True, allow_tf32: bool = False, autotune: bool = True) -\u003e torch.Tensor",
+      "summary": "Apply P or P^T to a matrix using shifted potentials.",
+      "description": "This kernel works with SHIFTED potentials directly:\n    f_hat = f - alpha  where alpha = cost_scale * ||x||^2\n    g_hat = g - beta   where beta  = cost_scale * ||y||^2\n\nComputes:\n  axis=1: out[i, :] = sum_j P_ij * mat[j, :]  (P @ V)\n  axis=0: out[j, :] = sum_i P_ij * mat[i, :]  (P^T @ V)\n\nwhere P_ij = a_i * b_j * exp((f_hat + g_hat + 2*cost_scale*x.y) / eps)\n\nArgs:\n    x: Source points [n, d]\n    y: Target points [m, d]\n    f_hat: Shifted f potential [n] (f_hat = f - cost_scale * ||x||^2)\n    g_hat: Shifted g potential [m] (g_hat = g - cost_scale * ||y||^2)\n    log_a: Log source weights [n]\n    log_b: Log target weights [m]\n    mat: Matrix V [m, d] for axis=1, [n, d] for axis=0\n    eps: Regularization parameter\n    axis: 1 for P @ V, 0 for P^T @ V\n    cost_scale: Scaling for cost (1.0 for ||x-y||^2, 0.5 for ||x-y||^2/2)\n    scale: Optional per-row scale [m] for axis=1 (applies mat * scale[:, None])\n    autotune: If True (default), use autotuned kernel configs\n\nReturns:\n    out: Result matrix [n, d] for axis=1, [m, d] for axis=0\n\nNote:\n    The shifted potentials can be obtained from standard potentials via:\n        f_hat = f - cost_scale * (x ** 2).sum(dim=1)\n        g_hat = g - cost_scale * (y ** 2).sum(dim=1)\n\n    Or directly from the shifted-potential Sinkhorn solvers.",
+      "source": {
+        "file": "torchmatch/transport/samples/kernels/apply_shifted.py",
+        "line": 387
+      },
+      "parent": "torchmatch.transport.samples.kernels.apply_shifted"
+    },
+    {
+      "id": "torchmatch.transport.samples.kernels.apply_shifted.apply_plan_vec_shifted",
+      "kind": "function",
+      "path": [
+        "torchmatch",
+        "transport",
+        "samples",
+        "kernels",
+        "apply_shifted",
+        "apply_plan_vec_shifted"
+      ],
+      "signature": "def apply_plan_vec_shifted(x: torch.Tensor, y: torch.Tensor, f_hat: torch.Tensor, g_hat: torch.Tensor, log_a: torch.Tensor, log_b: torch.Tensor, vec: torch.Tensor, eps: float, axis: int, cost_scale: float = 1.0, allow_tf32: bool = False, use_exp2: bool = True, block_m: int = 64, block_n: int = 64, block_k: int = 64, num_warps: int = 4, num_stages: int = 2) -\u003e torch.Tensor",
+      "summary": "Apply transport plan to vector using shifted-form with s_I cancellation.",
+      "description": "Computes P @ vec (axis=1) or P^T @ vec (axis=0) where:\nP[i,j] = a[i] * b[j] * exp((f_hat[i] + g_hat[j] + 2*cost_scale*x[i].y[j]) / eps)\n\nKey optimization: The normalizing sum s_I cancels algebraically, so we use:\n- axis=1: out_I = a_I * exp(f_hat_I/eps + m_I) * O_I\n- axis=0: out_J = b_J * exp(g_hat_J/eps + m_J) * O_J\n\nArgs:\n    x: Source points [n, d], fp16/fp32\n    y: Target points [m, d], fp16/fp32\n    f_hat: Shifted source potential [n], fp32\n    g_hat: Shifted target potential [m], fp32\n    log_a: Log source weights [n], fp32\n    log_b: Log target weights [m], fp32\n    vec: Vector to apply [m] for axis=1, [n] for axis=0\n    eps: Regularization parameter\n    axis: 1 for P @ vec, 0 for P^T @ vec\n    cost_scale: Scaling for cost (0.5 for half_cost)\n    allow_tf32: Use TF32 for dot products\n    use_exp2: Use exp2 instead of exp\n    block_m, block_n, block_k: Block sizes\n    num_warps, num_stages: Triton tuning params\n\nReturns:\n    out: Result vector [n] for axis=1, [m] for axis=0",
+      "source": {
+        "file": "torchmatch/transport/samples/kernels/apply_shifted.py",
+        "line": 961
+      },
+      "parent": "torchmatch.transport.samples.kernels.apply_shifted"
+    },
+    {
+      "id": "torchmatch.transport.samples.kernels.apply_sqeuclid",
+      "kind": "module",
+      "path": [
+        "torchmatch",
+        "transport",
+        "samples",
+        "kernels",
+        "apply_sqeuclid"
+      ],
+      "signature": "module torchmatch.transport.samples.kernels.apply_sqeuclid",
+      "summary": "Backward-compatible re-exports for apply kernels.",
+      "description": "The actual implementations live in:\n- apply_raw.py: raw-form kernels (mat5, deprecated vec/mat wrappers)\n- apply_shifted.py: shifted-form kernels (vec/mat with shifted potentials)",
+      "source": {
+        "file": "torchmatch/transport/samples/kernels/apply_sqeuclid.py",
+        "line": 1
+      },
+      "parent": "torchmatch.transport.samples.kernels"
+    },
+    {
+      "id": "torchmatch.transport.samples.kernels.c_transform_sqeuclid",
+      "kind": "module",
+      "path": [
+        "torchmatch",
+        "transport",
+        "samples",
+        "kernels",
+        "c_transform_sqeuclid"
+      ],
+      "signature": "module torchmatch.transport.samples.kernels.c_transform_sqeuclid",
+      "summary": "C-Transform (hard argmin) kernel for squared Euclidean cost.",
+      "description": "Computes the non-entropic Kantorovich c-transform via streaming min + argmin:\n\n    c_i = min_j [cost_scale * ||x_i - y_j||² - ψ_j]\n    j*_i = argmin_j [cost_scale * ||x_i - y_j||² - ψ_j]\n\nFactorization (same trick as the LSE kernel):\n\n    cost_scale * ||x-y||² - ψ = cost_scale*||x||² + (cost_scale*||y||² - ψ) - 2*cost_scale*(x·y)\n                               = alpha_i + bias_j - coord_scale * dot(x_i, y_j)\n\nwhere:\n    alpha_i = cost_scale * ||x_i||²  (constant w.r.t. j, factors out of min)\n    bias_j  = cost_scale * ||y_j||² - ψ_j\n    coord_scale = 2 * cost_scale\n\nThe kernel computes min_j[-coord_scale * dot(x_i, y_j) + bias_j] via tiled streaming.\nThe Python wrapper adds alpha_i back to get the final c-transform values.\n\nTie-breaking: across tiles, smallest-j wins (strict \u003c comparison).\nWithin a tile, tl.argmin selects the first minimum per Triton lane ordering.\n\nKernel outputs int32 indices (saves SRAM/registers). Python wrapper casts to int64.",
+      "source": {
+        "file": "torchmatch/transport/samples/kernels/c_transform_sqeuclid.py",
+        "line": 1
+      },
+      "parent": "torchmatch.transport.samples.kernels"
+    },
+    {
+      "id": "torchmatch.transport.samples.kernels.c_transform_sqeuclid.c_transform_kernel",
+      "kind": "function",
+      "path": [
+        "torchmatch",
+        "transport",
+        "samples",
+        "kernels",
+        "c_transform_sqeuclid",
+        "c_transform_kernel"
+      ],
+      "signature": "def c_transform_kernel(x: torch.Tensor, y: torch.Tensor, bias: torch.Tensor, cost_scale: float = 1.0, allow_tf32: bool = True, block_m: int | None = None, block_n: int | None = None, block_k: int | None = None, num_warps: int | None = None, num_stages: int = 3, autotune: bool = True) -\u003e tuple[torch.Tensor, torch.Tensor]",
+      "summary": "Compute streaming min + argmin over the factored cost.",
+      "description": "Computes per source point i:\n    min_val_i = min_j [-coord_scale * dot(x_i, y_j) + bias_j]\n    min_idx_i = argmin_j [same]\n\nThis is the inner minimum only. The caller adds alpha_i = cost_scale * ||x_i||²\nto get the full c-transform values.\n\nArgs:\n    x: Source coordinates [n, d], CUDA\n    y: Target coordinates [m, d], CUDA\n    bias: Pre-scaled bias [m] = cost_scale * ||y||² - ψ\n    cost_scale: Cost scaling (1.0 for ||x-y||², 0.5 for ||x-y||²/2)\n    allow_tf32: Enable TF32 for matmul\n    block_m, block_n, block_k: Manual block sizes (disables autotune)\n    num_warps: Number of warps (disables autotune)\n    num_stages: Pipeline stages\n    autotune: Enable autotuning\n\nReturns:\n    min_vals: Inner minimum values [n], float32\n    argmin_idx: Argmin indices [n], int64 (cast from kernel int32)",
+      "source": {
+        "file": "torchmatch/transport/samples/kernels/c_transform_sqeuclid.py",
+        "line": 239
+      },
+      "parent": "torchmatch.transport.samples.kernels.c_transform_sqeuclid"
+    },
+    {
+      "id": "torchmatch.transport.samples.kernels.cg_dense",
+      "kind": "module",
+      "path": [
+        "torchmatch",
+        "transport",
+        "samples",
+        "kernels",
+        "cg_dense"
+      ],
+      "signature": "module torchmatch.transport.samples.kernels.cg_dense",
+      "summary": "Dense CG solver with cached transport plan matrix.",
+      "description": "This module provides a CG solver that materializes the O(n*m) transport plan\nmatrix P and uses dense matrix-vector products (P @ v, P.T @ v) instead of\nstreaming Triton kernels. This is significantly faster for small problem sizes\n(n \u003c= 8192) where:\n1. The O(n²) plan fits in GPU memory\n2. Kernel launch overhead dominates streaming computation\n3. Dense matvecs can leverage tensor core saturation\n\nPerformance comparison (n=2048, d=64):\n- Streaming CG (Triton): ~48 ms (64 kernel launches × 0.76 ms)\n- Dense CG (cached P):   ~5.9 ms (8.12x speedup!)\n\nMemory trade-off:\n- Streaming: O(nd) memory\n- Dense: O(nm) memory for transport plan P\n\nCrossover point: n ≈ 8192-10000 where memory becomes the bottleneck.",
+      "source": {
+        "file": "torchmatch/transport/samples/kernels/cg_dense.py",
+        "line": 1
+      },
+      "parent": "torchmatch.transport.samples.kernels"
+    },
+    {
+      "id": "torchmatch.transport.samples.kernels.cg_dense.DenseCgInfo",
+      "kind": "type",
+      "path": [
+        "torchmatch",
+        "transport",
+        "samples",
+        "kernels",
+        "cg_dense",
+        "DenseCgInfo"
+      ],
+      "signature": "class DenseCgInfo:",
+      "summary": "Convergence information for dense CG solver.",
+      "source": {
+        "file": "torchmatch/transport/samples/kernels/cg_dense.py",
+        "line": 29
+      },
+      "parent": "torchmatch.transport.samples.kernels.cg_dense"
+    },
+    {
+      "id": "torchmatch.transport.samples.kernels.cg_dense.DenseCgInfo.cg_converged",
+      "kind": "property",
+      "path": [
+        "torchmatch",
+        "transport",
+        "samples",
+        "kernels",
+        "cg_dense",
+        "DenseCgInfo",
+        "cg_converged"
+      ],
+      "signature": "cg_converged: bool",
+      "source": {
+        "file": "torchmatch/transport/samples/kernels/cg_dense.py",
+        "line": 33
+      },
+      "parent": "torchmatch.transport.samples.kernels.cg_dense.DenseCgInfo"
+    },
+    {
+      "id": "torchmatch.transport.samples.kernels.cg_dense.DenseCgInfo.cg_iters",
+      "kind": "property",
+      "path": [
+        "torchmatch",
+        "transport",
+        "samples",
+        "kernels",
+        "cg_dense",
+        "DenseCgInfo",
+        "cg_iters"
+      ],
+      "signature": "cg_iters: int",
+      "source": {
+        "file": "torchmatch/transport/samples/kernels/cg_dense.py",
+        "line": 34
+      },
+      "parent": "torchmatch.transport.samples.kernels.cg_dense.DenseCgInfo"
+    },
+    {
+      "id": "torchmatch.transport.samples.kernels.cg_dense.DenseCgInfo.cg_residual",
+      "kind": "property",
+      "path": [
+        "torchmatch",
+        "transport",
+        "samples",
+        "kernels",
+        "cg_dense",
+        "DenseCgInfo",
+        "cg_residual"
+      ],
+      "signature": "cg_residual: float",
+      "source": {
+        "file": "torchmatch/transport/samples/kernels/cg_dense.py",
+        "line": 35
+      },
+      "parent": "torchmatch.transport.samples.kernels.cg_dense.DenseCgInfo"
+    },
+    {
+      "id": "torchmatch.transport.samples.kernels.cg_dense.DenseCgInfo.cg_initial_residual",
+      "kind": "property",
+      "path": [
+        "torchmatch",
+        "transport",
+        "samples",
+        "kernels",
+        "cg_dense",
+        "DenseCgInfo",
+        "cg_initial_residual"
+      ],
+      "signature": "cg_initial_residual: float",
+      "source": {
+        "file": "torchmatch/transport/samples/kernels/cg_dense.py",
+        "line": 36
+      },
+      "parent": "torchmatch.transport.samples.kernels.cg_dense.DenseCgInfo"
+    },
+    {
+      "id": "torchmatch.transport.samples.kernels.cg_dense.DenseCgInfo.__init__",
+      "kind": "method",
+      "path": [
+        "torchmatch",
+        "transport",
+        "samples",
+        "kernels",
+        "cg_dense",
+        "DenseCgInfo",
+        "__init__"
+      ],
+      "signature": "def __init__(self, cg_converged: bool, cg_iters: int, cg_residual: float, cg_initial_residual: float) -\u003e None",
+      "source": {
+        "file": "torchmatch/transport/samples/kernels/cg_dense.py",
+        "line": 1
+      },
+      "parent": "torchmatch.transport.samples.kernels.cg_dense.DenseCgInfo"
+    },
+    {
+      "id": "torchmatch.transport.samples.kernels.cg_dense.materialize_transport_plan",
+      "kind": "function",
+      "path": [
+        "torchmatch",
+        "transport",
+        "samples",
+        "kernels",
+        "cg_dense",
+        "materialize_transport_plan"
+      ],
+      "signature": "def materialize_transport_plan(x: torch.Tensor, y: torch.Tensor, f_hat: torch.Tensor, g_hat: torch.Tensor, eps: float, x2: torch.Tensor | None = None, y2: torch.Tensor | None = None) -\u003e torch.Tensor",
+      "summary": "Materialize the transport plan P = exp((f_hat + g_hat - C) / eps).",
+      "params": [
+        {
+          "name": "x",
+          "type": "torch.Tensor",
+          "doc": "Source points (n, d)"
+        },
+        {
+          "name": "y",
+          "type": "torch.Tensor",
+          "doc": "Target points (m, d)"
+        },
+        {
+          "name": "f_hat",
+          "type": "torch.Tensor",
+          "doc": "Source raw-form potential (n,)"
+        },
+        {
+          "name": "g_hat",
+          "type": "torch.Tensor",
+          "doc": "Target raw-form potential (m,)"
+        },
+        {
+          "name": "eps",
+          "type": "float",
+          "doc": "Entropy regularization"
+        },
+        {
+          "name": "x2",
+          "type": "torch.Tensor | None",
+          "default": "None",
+          "doc": "Precomputed ||x_i||² (n,), optional"
+        },
+        {
+          "name": "y2",
+          "type": "torch.Tensor | None",
+          "default": "None",
+          "doc": "Precomputed ||y_j||² (m,), optional"
+        }
+      ],
+      "returns": {
+        "type": "torch.Tensor",
+        "doc": "Transport plan matrix (n, m), dtype=float32"
+      },
+      "source": {
+        "file": "torchmatch/transport/samples/kernels/cg_dense.py",
+        "line": 39
+      },
+      "parent": "torchmatch.transport.samples.kernels.cg_dense"
+    },
+    {
+      "id": "torchmatch.transport.samples.kernels.cg_dense.dense_cg_solve",
+      "kind": "function",
+      "path": [
+        "torchmatch",
+        "transport",
+        "samples",
+        "kernels",
+        "cg_dense",
+        "dense_cg_solve"
+      ],
+      "signature": "def dense_cg_solve(P: torch.Tensor, diag_x: torch.Tensor, denom: torch.Tensor, rhs: torch.Tensor, max_iter: int = 100, rtol: float = 1e-06, atol: float = 1e-06) -\u003e tuple[torch.Tensor, DenseCgInfo]",
+      "summary": "Solve the Schur complement system using dense matrix operations.",
+      "description": "Solves: (denom * I - P.T @ diag(1/diag_x) @ P) @ z = rhs\n\nThis is the inner CG solve for the HVP. Instead of using streaming Triton\nkernels to apply the transport plan, we cache P and use dense matvecs.",
+      "params": [
+        {
+          "name": "P",
+          "type": "torch.Tensor",
+          "doc": "Materialized transport plan (n, m)."
+        },
+        {
+          "name": "diag_x",
+          "type": "torch.Tensor",
+          "doc": "Diagonal scaling for source marginal (n,)."
+        },
+        {
+          "name": "denom",
+          "type": "torch.Tensor",
+          "doc": "Diagonal of the Schur complement (m,), includes regularization."
+        },
+        {
+          "name": "rhs",
+          "type": "torch.Tensor",
+          "doc": "Right-hand side vector (m,)."
+        },
+        {
+          "name": "max_iter",
+          "type": "int",
+          "default": "100",
+          "doc": "Maximum CG iterations."
+        },
+        {
+          "name": "rtol",
+          "type": "float",
+          "default": "1e-06",
+          "doc": "Relative tolerance."
+        },
+        {
+          "name": "atol",
+          "type": "float",
+          "default": "1e-06",
+          "doc": "Absolute tolerance."
+        }
+      ],
+      "returns": {
+        "type": "z",
+        "doc": "Solution vector (m,)."
+      },
+      "source": {
+        "file": "torchmatch/transport/samples/kernels/cg_dense.py",
+        "line": 91
+      },
+      "parent": "torchmatch.transport.samples.kernels.cg_dense"
+    },
+    {
+      "id": "torchmatch.transport.samples.kernels.cg_dense.hvp_dense_cg",
+      "kind": "function",
+      "path": [
+        "torchmatch",
+        "transport",
+        "samples",
+        "kernels",
+        "cg_dense",
+        "hvp_dense_cg"
+      ],
+      "signature": "def hvp_dense_cg(x: torch.Tensor, y: torch.Tensor, f_hat: torch.Tensor, g_hat: torch.Tensor, A: torch.Tensor, eps: float, rho_x: float | None = None, rho_y: float | None = None, tau2: float = 1e-05, max_cg_iter: int = 100, cg_rtol: float = 1e-06, cg_atol: float = 1e-06) -\u003e tuple[torch.Tensor, DenseCgInfo]",
+      "summary": "Compute HVP using dense CG with cached transport plan.",
+      "description": "This is a drop-in replacement for the streaming Triton HVP that is\n8x faster for small problem sizes (n \u003c= 8192).",
+      "params": [
+        {
+          "name": "x",
+          "type": "torch.Tensor",
+          "doc": "Source points (n, d)"
+        },
+        {
+          "name": "y",
+          "type": "torch.Tensor",
+          "doc": "Target points (m, d)"
+        },
+        {
+          "name": "f_hat",
+          "type": "torch.Tensor",
+          "doc": "Source raw-form potential (n,)"
+        },
+        {
+          "name": "g_hat",
+          "type": "torch.Tensor",
+          "doc": "Target raw-form potential (m,)"
+        },
+        {
+          "name": "A",
+          "type": "torch.Tensor",
+          "doc": "Input matrix for HVP (n, d)"
+        },
+        {
+          "name": "eps",
+          "type": "float",
+          "doc": "Entropy regularization"
+        },
+        {
+          "name": "rho_x",
+          "type": "float | None",
+          "default": "None",
+          "doc": "Source marginal KL penalty (None = strict constraint)"
+        },
+        {
+          "name": "rho_y",
+          "type": "float | None",
+          "default": "None",
+          "doc": "Target marginal KL penalty (None = strict constraint)"
+        },
+        {
+          "name": "tau2",
+          "type": "float",
+          "default": "1e-05",
+          "doc": "Tikhonov regularization (only used for balanced OT)"
+        },
+        {
+          "name": "max_cg_iter",
+          "type": "int",
+          "default": "100",
+          "doc": "Maximum CG iterations"
+        },
+        {
+          "name": "cg_rtol",
+          "type": "float",
+          "default": "1e-06",
+          "doc": "Relative CG tolerance"
+        },
+        {
+          "name": "cg_atol",
+          "type": "float",
+          "default": "1e-06",
+          "doc": "Absolute CG tolerance"
+        }
+      ],
+      "returns": {
+        "type": "torch.Tensor",
+        "doc": "Hessian-vector product H @ A, shape (n, d)"
+      },
+      "source": {
+        "file": "torchmatch/transport/samples/kernels/cg_dense.py",
+        "line": 207
+      },
+      "parent": "torchmatch.transport.samples.kernels.cg_dense"
+    },
+    {
+      "id": "torchmatch.transport.samples.kernels.cg_dense.CachedDenseHVP",
+      "kind": "type",
+      "path": [
+        "torchmatch",
+        "transport",
+        "samples",
+        "kernels",
+        "cg_dense",
+        "CachedDenseHVP"
+      ],
+      "signature": "class CachedDenseHVP:",
+      "summary": "Cached HVP context that materializes transport plan once.",
+      "description": "This class provides significant speedup when computing multiple HVPs\nwith the same potentials (e.g., during outer Newton CG iterations).\nThe transport plan P is materialized once during __init__, and reused\nfor all subsequent hvp() calls.\n\nPerformance improvement: ~19x speedup for 19 CG iterations\n(avoids re-materializing O(n²) transport plan each iteration).",
+      "source": {
+        "file": "torchmatch/transport/samples/kernels/cg_dense.py",
+        "line": 387
+      },
+      "parent": "torchmatch.transport.samples.kernels.cg_dense"
+    },
+    {
+      "id": "torchmatch.transport.samples.kernels.cg_dense.CachedDenseHVP.__init__",
+      "kind": "method",
+      "path": [
+        "torchmatch",
+        "transport",
+        "samples",
+        "kernels",
+        "cg_dense",
+        "CachedDenseHVP",
+        "__init__"
+      ],
+      "signature": "def __init__(self, x: torch.Tensor, y: torch.Tensor, f_hat: torch.Tensor, g_hat: torch.Tensor, eps: float, rho_x: float | None = None, rho_y: float | None = None, tau2: float = 1e-05, max_cg_iter: int = 100, cg_rtol: float = 1e-06, cg_atol: float = 1e-06)",
+      "summary": "Initialize cached HVP context.",
+      "params": [
+        {
+          "name": "x",
+          "type": "torch.Tensor",
+          "doc": "Source points (n, d)"
+        },
+        {
+          "name": "y",
+          "type": "torch.Tensor",
+          "doc": "Target points (m, d)"
+        },
+        {
+          "name": "f_hat",
+          "type": "torch.Tensor",
+          "doc": "Source raw-form potential (n,)"
+        },
+        {
+          "name": "g_hat",
+          "type": "torch.Tensor",
+          "doc": "Target raw-form potential (m,)"
+        },
+        {
+          "name": "eps",
+          "type": "float",
+          "doc": "Entropy regularization"
+        },
+        {
+          "name": "rho_x",
+          "type": "float | None",
+          "default": "None",
+          "doc": "Source marginal KL penalty (None = balanced)"
+        },
+        {
+          "name": "rho_y",
+          "type": "float | None",
+          "default": "None",
+          "doc": "Target marginal KL penalty (None = balanced)"
+        },
+        {
+          "name": "tau2",
+          "type": "float",
+          "default": "1e-05",
+          "doc": "Tikhonov regularization"
+        },
+        {
+          "name": "max_cg_iter",
+          "type": "int",
+          "default": "100",
+          "doc": "Maximum inner CG iterations"
+        },
+        {
+          "name": "cg_rtol",
+          "type": "float",
+          "default": "1e-06",
+          "doc": "Relative CG tolerance"
+        },
+        {
+          "name": "cg_atol",
+          "type": "float",
+          "default": "1e-06",
+          "doc": "Absolute CG tolerance"
+        }
+      ],
+      "source": {
+        "file": "torchmatch/transport/samples/kernels/cg_dense.py",
+        "line": 405
+      },
+      "parent": "torchmatch.transport.samples.kernels.cg_dense.CachedDenseHVP"
+    },
+    {
+      "id": "torchmatch.transport.samples.kernels.cg_dense.CachedDenseHVP.eps_f",
+      "kind": "property",
+      "path": [
+        "torchmatch",
+        "transport",
+        "samples",
+        "kernels",
+        "cg_dense",
+        "CachedDenseHVP",
+        "eps_f"
+      ],
+      "signature": "eps_f = float(eps)",
+      "source": {
+        "file": "torchmatch/transport/samples/kernels/cg_dense.py",
+        "line": 447
+      },
+      "parent": "torchmatch.transport.samples.kernels.cg_dense.CachedDenseHVP"
+    },
+    {
+      "id": "torchmatch.transport.samples.kernels.cg_dense.CachedDenseHVP.max_cg_iter",
+      "kind": "property",
+      "path": [
+        "torchmatch",
+        "transport",
+        "samples",
+        "kernels",
+        "cg_dense",
+        "CachedDenseHVP",
+        "max_cg_iter"
+      ],
+      "signature": "max_cg_iter = max_cg_iter",
+      "source": {
+        "file": "torchmatch/transport/samples/kernels/cg_dense.py",
+        "line": 448
+      },
+      "parent": "torchmatch.transport.samples.kernels.cg_dense.CachedDenseHVP"
+    },
+    {
+      "id": "torchmatch.transport.samples.kernels.cg_dense.CachedDenseHVP.cg_rtol",
+      "kind": "property",
+      "path": [
+        "torchmatch",
+        "transport",
+        "samples",
+        "kernels",
+        "cg_dense",
+        "CachedDenseHVP",
+        "cg_rtol"
+      ],
+      "signature": "cg_rtol = cg_rtol",
+      "source": {
+        "file": "torchmatch/transport/samples/kernels/cg_dense.py",
+        "line": 449
+      },
+      "parent": "torchmatch.transport.samples.kernels.cg_dense.CachedDenseHVP"
+    },
+    {
+      "id": "torchmatch.transport.samples.kernels.cg_dense.CachedDenseHVP.cg_atol",
+      "kind": "property",
+      "path": [
+        "torchmatch",
+        "transport",
+        "samples",
+        "kernels",
+        "cg_dense",
+        "CachedDenseHVP",
+        "cg_atol"
+      ],
+      "signature": "cg_atol = cg_atol",
+      "source": {
+        "file": "torchmatch/transport/samples/kernels/cg_dense.py",
+        "line": 450
+      },
+      "parent": "torchmatch.transport.samples.kernels.cg_dense.CachedDenseHVP"
+    },
+    {
+      "id": "torchmatch.transport.samples.kernels.cg_dense.CachedDenseHVP.n",
+      "kind": "property",
+      "path": [
+        "torchmatch",
+        "transport",
+        "samples",
+        "kernels",
+        "cg_dense",
+        "CachedDenseHVP",
+        "n"
+      ],
+      "signature": "n = n",
+      "source": {
+        "file": "torchmatch/transport/samples/kernels/cg_dense.py",
+        "line": 454
+      },
+      "parent": "torchmatch.transport.samples.kernels.cg_dense.CachedDenseHVP"
+    },
+    {
+      "id": "torchmatch.transport.samples.kernels.cg_dense.CachedDenseHVP.m",
+      "kind": "property",
+      "path": [
+        "torchmatch",
+        "transport",
+        "samples",
+        "kernels",
+        "cg_dense",
+        "CachedDenseHVP",
+        "m"
+      ],
+      "signature": "m = m",
+      "source": {
+        "file": "torchmatch/transport/samples/kernels/cg_dense.py",
+        "line": 455
+      },
+      "parent": "torchmatch.transport.samples.kernels.cg_dense.CachedDenseHVP"
+    },
+    {
+      "id": "torchmatch.transport.samples.kernels.cg_dense.CachedDenseHVP.d",
+      "kind": "property",
+      "path": [
+        "torchmatch",
+        "transport",
+        "samples",
+        "kernels",
+        "cg_dense",
+        "CachedDenseHVP",
+        "d"
+      ],
+      "signature": "d = d",
+      "source": {
+        "file": "torchmatch/transport/samples/kernels/cg_dense.py",
+        "line": 456
+      },
+      "parent": "torchmatch.transport.samples.kernels.cg_dense.CachedDenseHVP"
+    },
+    {
+      "id": "torchmatch.transport.samples.kernels.cg_dense.CachedDenseHVP.x_f",
+      "kind": "property",
+      "path": [
+        "torchmatch",
+        "transport",
+        "samples",
+        "kernels",
+        "cg_dense",
+        "CachedDenseHVP",
+        "x_f"
+      ],
+      "signature": "x_f = x.float()",
+      "source": {
+        "file": "torchmatch/transport/samples/kernels/cg_dense.py",
+        "line": 459
+      },
+      "parent": "torchmatch.transport.samples.kernels.cg_dense.CachedDenseHVP"
+    },
+    {
+      "id": "torchmatch.transport.samples.kernels.cg_dense.CachedDenseHVP.y_f",
+      "kind": "property",
+      "path": [
+        "torchmatch",
+        "transport",
+        "samples",
+        "kernels",
+        "cg_dense",
+        "CachedDenseHVP",
+        "y_f"
+      ],
+      "signature": "y_f = y.float()",
+      "source": {
+        "file": "torchmatch/transport/samples/kernels/cg_dense.py",
+        "line": 460
+      },
+      "parent": "torchmatch.transport.samples.kernels.cg_dense.CachedDenseHVP"
+    },
+    {
+      "id": "torchmatch.transport.samples.kernels.cg_dense.CachedDenseHVP.P",
+      "kind": "constant",
+      "path": [
+        "torchmatch",
+        "transport",
+        "samples",
+        "kernels",
+        "cg_dense",
+        "CachedDenseHVP",
+        "P"
+      ],
+      "signature": "P = materialize_transport_plan(x, y, f_hat, g_hat, self.eps_f, x2, y2)",
+      "source": {
+        "file": "torchmatch/transport/samples/kernels/cg_dense.py",
+        "line": 467
+      },
+      "parent": "torchmatch.transport.samples.kernels.cg_dense.CachedDenseHVP"
+    },
+    {
+      "id": "torchmatch.transport.samples.kernels.cg_dense.CachedDenseHVP.a_hat",
+      "kind": "property",
+      "path": [
+        "torchmatch",
+        "transport",
+        "samples",
+        "kernels",
+        "cg_dense",
+        "CachedDenseHVP",
+        "a_hat"
+      ],
+      "signature": "a_hat = torch.mv(self.P, ones_m)",
+      "source": {
+        "file": "torchmatch/transport/samples/kernels/cg_dense.py",
+        "line": 472
+      },
+      "parent": "torchmatch.transport.samples.kernels.cg_dense.CachedDenseHVP"
+    },
+    {
+      "id": "torchmatch.transport.samples.kernels.cg_dense.CachedDenseHVP.b_hat",
+      "kind": "property",
+      "path": [
+        "torchmatch",
+        "transport",
+        "samples",
+        "kernels",
+        "cg_dense",
+        "CachedDenseHVP",
+        "b_hat"
+      ],
+      "signature": "b_hat = torch.mv(self.P.t(), ones_n)",
+      "source": {
+        "file": "torchmatch/transport/samples/kernels/cg_dense.py",
+        "line": 473
+      },
+      "parent": "torchmatch.transport.samples.kernels.cg_dense.CachedDenseHVP"
+    },
+    {
+      "id": "torchmatch.transport.samples.kernels.cg_dense.CachedDenseHVP.is_balanced",
+      "kind": "property",
+      "path": [
+        "torchmatch",
+        "transport",
+        "samples",
+        "kernels",
+        "cg_dense",
+        "CachedDenseHVP",
+        "is_balanced"
+      ],
+      "signature": "is_balanced = rho_x is None and rho_y is None",
+      "source": {
+        "file": "torchmatch/transport/samples/kernels/cg_dense.py",
+        "line": 479
+      },
+      "parent": "torchmatch.transport.samples.kernels.cg_dense.CachedDenseHVP"
+    },
+    {
+      "id": "torchmatch.transport.samples.kernels.cg_dense.CachedDenseHVP.diag_x",
+      "kind": "property",
+      "path": [
+        "torchmatch",
+        "transport",
+        "samples",
+        "kernels",
+        "cg_dense",
+        "CachedDenseHVP",
+        "diag_x"
+      ],
+      "signature": "diag_x = diag_factor_x * a_hat_clamped",
+      "source": {
+        "file": "torchmatch/transport/samples/kernels/cg_dense.py",
+        "line": 496
+      },
+      "parent": "torchmatch.transport.samples.kernels.cg_dense.CachedDenseHVP"
+    },
+    {
+      "id": "torchmatch.transport.samples.kernels.cg_dense.CachedDenseHVP.diag_y",
+      "kind": "property",
+      "path": [
+        "torchmatch",
+        "transport",
+        "samples",
+        "kernels",
+        "cg_dense",
+        "CachedDenseHVP",
+        "diag_y"
+      ],
+      "signature": "diag_y = diag_factor_y * b_hat_clamped",
+      "source": {
+        "file": "torchmatch/transport/samples/kernels/cg_dense.py",
+        "line": 497
+      },
+      "parent": "torchmatch.transport.samples.kernels.cg_dense.CachedDenseHVP"
+    },
+    {
+      "id": "torchmatch.transport.samples.kernels.cg_dense.CachedDenseHVP.denom",
+      "kind": "property",
+      "path": [
+        "torchmatch",
+        "transport",
+        "samples",
+        "kernels",
+        "cg_dense",
+        "CachedDenseHVP",
+        "denom"
+      ],
+      "signature": "denom = self.diag_y + self.eps_f * float(tau2)",
+      "source": {
+        "file": "torchmatch/transport/samples/kernels/cg_dense.py",
+        "line": 501
+      },
+      "parent": "torchmatch.transport.samples.kernels.cg_dense.CachedDenseHVP"
+    },
+    {
+      "id": "torchmatch.transport.samples.kernels.cg_dense.CachedDenseHVP.Py",
+      "kind": "property",
+      "path": [
+        "torchmatch",
+        "transport",
+        "samples",
+        "kernels",
+        "cg_dense",
+        "CachedDenseHVP",
+        "Py"
+      ],
+      "signature": "Py = torch.mm(self.P, self.y_f)",
+      "source": {
+        "file": "torchmatch/transport/samples/kernels/cg_dense.py",
+        "line": 506
+      },
+      "parent": "torchmatch.transport.samples.kernels.cg_dense.CachedDenseHVP"
+    },
+    {
+      "id": "torchmatch.transport.samples.kernels.cg_dense.CachedDenseHVP.hvp",
+      "kind": "method",
+      "path": [
+        "torchmatch",
+        "transport",
+        "samples",
+        "kernels",
+        "cg_dense",
+        "CachedDenseHVP",
+        "hvp"
+      ],
+      "signature": "def hvp(self, A: torch.Tensor) -\u003e tuple[torch.Tensor, DenseCgInfo]",
+      "summary": "Compute HVP using cached transport plan.",
+      "params": [
+        {
+          "name": "A",
+          "type": "torch.Tensor",
+          "doc": "Input matrix for HVP (n, d)"
+        }
+      ],
+      "returns": {
+        "type": "torch.Tensor",
+        "doc": "Hessian-vector product H @ A, shape (n, d)"
+      },
+      "source": {
+        "file": "torchmatch/transport/samples/kernels/cg_dense.py",
+        "line": 508
+      },
+      "parent": "torchmatch.transport.samples.kernels.cg_dense.CachedDenseHVP"
+    },
+    {
+      "id": "torchmatch.transport.samples.kernels.cg_python_batched",
+      "kind": "module",
+      "path": [
+        "torchmatch",
+        "transport",
+        "samples",
+        "kernels",
+        "cg_python_batched"
+      ],
+      "signature": "module torchmatch.transport.samples.kernels.cg_python_batched",
+      "summary": "Python-level batched CG for HVP acceleration.",
+      "description": "This module implements a batched CG solver that uses the\napply_plan_vec_shifted kernels for improved performance and reduced memory\nusage.\n\nThis avoids the mysterious Triton compilation state issues observed with\nthe fully-inline batched CG kernel while still providing a clean interface\nfor batched CG solving.\n\nIncludes a torch.compile-compatible version for additional speedup.",
+      "source": {
+        "file": "torchmatch/transport/samples/kernels/cg_python_batched.py",
+        "line": 1
+      },
+      "parent": "torchmatch.transport.samples.kernels"
+    },
+    {
+      "id": "torchmatch.transport.samples.kernels.cg_python_batched.PythonBatchedCgInfo",
+      "kind": "type",
+      "path": [
+        "torchmatch",
+        "transport",
+        "samples",
+        "kernels",
+        "cg_python_batched",
+        "PythonBatchedCgInfo"
+      ],
+      "signature": "class PythonBatchedCgInfo:",
+      "summary": "Information about Python batched CG execution.",
+      "source": {
+        "file": "torchmatch/transport/samples/kernels/cg_python_batched.py",
+        "line": 24
+      },
+      "parent": "torchmatch.transport.samples.kernels.cg_python_batched"
+    },
+    {
+      "id": "torchmatch.transport.samples.kernels.cg_python_batched.PythonBatchedCgInfo.cg_converged",
+      "kind": "property",
+      "path": [
+        "torchmatch",
+        "transport",
+        "samples",
+        "kernels",
+        "cg_python_batched",
+        "PythonBatchedCgInfo",
+        "cg_converged"
+      ],
+      "signature": "cg_converged: bool",
+      "source": {
+        "file": "torchmatch/transport/samples/kernels/cg_python_batched.py",
+        "line": 28
+      },
+      "parent": "torchmatch.transport.samples.kernels.cg_python_batched.PythonBatchedCgInfo"
+    },
+    {
+      "id": "torchmatch.transport.samples.kernels.cg_python_batched.PythonBatchedCgInfo.cg_iters",
+      "kind": "property",
+      "path": [
+        "torchmatch",
+        "transport",
+        "samples",
+        "kernels",
+        "cg_python_batched",
+        "PythonBatchedCgInfo",
+        "cg_iters"
+      ],
+      "signature": "cg_iters: int",
+      "source": {
+        "file": "torchmatch/transport/samples/kernels/cg_python_batched.py",
+        "line": 29
+      },
+      "parent": "torchmatch.transport.samples.kernels.cg_python_batched.PythonBatchedCgInfo"
+    },
+    {
+      "id": "torchmatch.transport.samples.kernels.cg_python_batched.PythonBatchedCgInfo.cg_residual",
+      "kind": "property",
+      "path": [
+        "torchmatch",
+        "transport",
+        "samples",
+        "kernels",
+        "cg_python_batched",
+        "PythonBatchedCgInfo",
+        "cg_residual"
+      ],
+      "signature": "cg_residual: float",
+      "source": {
+        "file": "torchmatch/transport/samples/kernels/cg_python_batched.py",
+        "line": 30
+      },
+      "parent": "torchmatch.transport.samples.kernels.cg_python_batched.PythonBatchedCgInfo"
+    },
+    {
+      "id": "torchmatch.transport.samples.kernels.cg_python_batched.PythonBatchedCgInfo.cg_initial_residual",
+      "kind": "property",
+      "path": [
+        "torchmatch",
+        "transport",
+        "samples",
+        "kernels",
+        "cg_python_batched",
+        "PythonBatchedCgInfo",
+        "cg_initial_residual"
+      ],
+      "signature": "cg_initial_residual: float",
+      "source": {
+        "file": "torchmatch/transport/samples/kernels/cg_python_batched.py",
+        "line": 31
+      },
+      "parent": "torchmatch.transport.samples.kernels.cg_python_batched.PythonBatchedCgInfo"
+    },
+    {
+      "id": "torchmatch.transport.samples.kernels.cg_python_batched.PythonBatchedCgInfo.__init__",
+      "kind": "method",
+      "path": [
+        "torchmatch",
+        "transport",
+        "samples",
+        "kernels",
+        "cg_python_batched",
+        "PythonBatchedCgInfo",
+        "__init__"
+      ],
+      "signature": "def __init__(self, cg_converged: bool, cg_iters: int, cg_residual: float, cg_initial_residual: float) -\u003e None",
+      "source": {
+        "file": "torchmatch/transport/samples/kernels/cg_python_batched.py",
+        "line": 1
+      },
+      "parent": "torchmatch.transport.samples.kernels.cg_python_batched.PythonBatchedCgInfo"
+    },
+    {
+      "id": "torchmatch.transport.samples.kernels.cg_python_batched.python_batched_cg_solve",
+      "kind": "function",
+      "path": [
+        "torchmatch",
+        "transport",
+        "samples",
+        "kernels",
+        "cg_python_batched",
+        "python_batched_cg_solve"
+      ],
+      "signature": "def python_batched_cg_solve(x: torch.Tensor, y: torch.Tensor, f: torch.Tensor, g: torch.Tensor, diag_x: torch.Tensor, denom: torch.Tensor, rhs: torch.Tensor, eps: float, x2: torch.Tensor | None = None, y2: torch.Tensor | None = None, x0: torch.Tensor | None = None, max_iter: int = 50, rtol: float = 1e-06, atol: float = 1e-06, autotune: bool = False) -\u003e tuple[torch.Tensor, PythonBatchedCgInfo]",
+      "summary": "Solve H @ x = b using CG with external apply_plan_vec kernels.",
+      "description": "This is a simpler, more reliable implementation that uses the proven\napply_plan_vec_sqeuclid kernels instead of inline Triton softmax.\n\nThe linear operator is:\n    H @ v = denom * v - P^T @ (P @ v / diag_x)\n\nwhere P is the (n, m) transport plan matrix.",
+      "params": [
+        {
+          "name": "x",
+          "type": "torch.Tensor",
+          "doc": "Source points (n, d)."
+        },
+        {
+          "name": "y",
+          "type": "torch.Tensor",
+          "doc": "Target points (m, d)."
+        },
+        {
+          "name": "f",
+          "type": "torch.Tensor",
+          "doc": "Source potential (n,)."
+        },
+        {
+          "name": "g",
+          "type": "torch.Tensor",
+          "doc": "Target potential (m,)."
+        },
+        {
+          "name": "diag_x",
+          "type": "torch.Tensor",
+          "doc": "Diagonal D_x (n,) — row sums of P."
+        },
+        {
+          "name": "denom",
+          "type": "torch.Tensor",
+          "doc": "Denominator D_y (m,) — column sums of P plus regularization."
+        },
+        {
+          "name": "rhs",
+          "type": "torch.Tensor",
+          "doc": "Right-hand side b (m,)."
+        },
+        {
+          "name": "eps",
+          "type": "float",
+          "doc": "Regularization parameter."
+        },
+        {
+          "name": "x2",
+          "type": "torch.Tensor | None",
+          "default": "None",
+          "doc": "Precomputed ``||x||²`` (n,); computed on the fly if None."
+        },
+        {
+          "name": "y2",
+          "type": "torch.Tensor | None",
+          "default": "None",
+          "doc": "Precomputed ``||y||²`` (m,); computed on the fly if None."
+        },
+        {
+          "name": "x0",
+          "type": "torch.Tensor | None",
+          "default": "None",
+          "doc": "Initial CG guess (m,); zero-initialized if None."
+        },
+        {
+          "name": "max_iter",
+          "type": "int",
+          "default": "50",
+          "doc": "Maximum CG iterations."
+        },
+        {
+          "name": "rtol",
+          "type": "float",
+          "default": "1e-06",
+          "doc": "Relative convergence tolerance."
+        },
+        {
+          "name": "atol",
+          "type": "float",
+          "default": "1e-06",
+          "doc": "Absolute convergence tolerance."
+        },
+        {
+          "name": "autotune",
+          "type": "bool",
+          "default": "False",
+          "doc": "Whether to enable Triton autotuning for apply_plan_vec."
+        }
+      ],
+      "returns": {
+        "type": "sol",
+        "doc": "Solution vector (m,)."
+      },
+      "source": {
+        "file": "torchmatch/transport/samples/kernels/cg_python_batched.py",
+        "line": 38
+      },
+      "parent": "torchmatch.transport.samples.kernels.cg_python_batched"
+    },
+    {
+      "id": "torchmatch.transport.samples.kernels.cg_python_batched.compiled_cg_solve",
+      "kind": "function",
+      "path": [
+        "torchmatch",
+        "transport",
+        "samples",
+        "kernels",
+        "cg_python_batched",
+        "compiled_cg_solve"
+      ],
+      "signature": "def compiled_cg_solve(x: torch.Tensor, y: torch.Tensor, f: torch.Tensor, g: torch.Tensor, diag_x: torch.Tensor, denom: torch.Tensor, rhs: torch.Tensor, eps: float, x2: torch.Tensor | None = None, y2: torch.Tensor | None = None, x0: torch.Tensor | None = None, max_iter: int = 50, rtol: float = 1e-06, atol: float = 1e-06, use_compile: bool = True) -\u003e tuple[torch.Tensor, PythonBatchedCgInfo]",
+      "summary": "Solve H @ x = b using CG with torch.compile optimization.",
+      "description": "This version uses torch.compile for the core CG loop, providing\nCUDA graph capture and kernel fusion for additional speedup.\n\nNote: This runs a fixed number of iterations (no early exit) to be\ntorch.compile friendly. The convergence info reflects the state\nafter max_iter iterations.\n\nArgs:\n    x: Source points (n, d)\n    y: Target points (m, d)\n    f: Source potential (n,)\n    g: Target potential (m,)\n    diag_x: Diagonal D_x (n,) - row sums of P\n    denom: Denominator D_y (m,) - column sums of P plus regularization\n    rhs: Right-hand side b (m,)\n    eps: Regularization parameter\n    x2: Precomputed ||x||^2 (n,) [optional]\n    y2: Precomputed ||y||^2 (m,) [optional]\n    x0: Initial guess (m,) [optional, ignored in compiled version]\n    max_iter: Number of CG iterations to run (fixed, no early exit)\n    rtol, atol: Convergence tolerances (for info only, no early exit)\n    use_compile: Whether to use torch.compile (default True)\n\nReturns:\n    sol: Solution x (m,)\n    info: Convergence information",
+      "source": {
+        "file": "torchmatch/transport/samples/kernels/cg_python_batched.py",
+        "line": 340
+      },
+      "parent": "torchmatch.transport.samples.kernels.cg_python_batched"
+    },
+    {
+      "id": "torchmatch.transport.samples.kernels.grad_sqeuclid",
+      "kind": "module",
+      "path": [
+        "torchmatch",
+        "transport",
+        "samples",
+        "kernels",
+        "grad_sqeuclid"
+      ],
+      "signature": "module torchmatch.transport.samples.kernels.grad_sqeuclid",
+      "source": {
+        "file": "torchmatch/transport/samples/kernels/grad_sqeuclid.py",
+        "line": 1
+      },
+      "parent": "torchmatch.transport.samples.kernels"
+    },
+    {
+      "id": "torchmatch.transport.samples.kernels.grad_sqeuclid.SHARED_MEM_BUDGET_KB",
+      "kind": "constant",
+      "path": [
+        "torchmatch",
+        "transport",
+        "samples",
+        "kernels",
+        "grad_sqeuclid",
+        "SHARED_MEM_BUDGET_KB"
+      ],
+      "signature": "SHARED_MEM_BUDGET_KB = 96",
+      "source": {
+        "file": "torchmatch/transport/samples/kernels/grad_sqeuclid.py",
+        "line": 883
+      },
+      "parent": "torchmatch.transport.samples.kernels.grad_sqeuclid"
+    },
+    {
+      "id": "torchmatch.transport.samples.kernels.grad_sqeuclid.sinkhorn_online_grad_sqeuclid",
+      "kind": "function",
+      "path": [
+        "torchmatch",
+        "transport",
+        "samples",
+        "kernels",
+        "grad_sqeuclid",
+        "sinkhorn_online_grad_sqeuclid"
+      ],
+      "signature": "def sinkhorn_online_grad_sqeuclid(x: torch.Tensor, y: torch.Tensor, a: torch.Tensor, b: torch.Tensor, f: torch.Tensor, g: torch.Tensor, eps: float, allow_tf32: bool = True, use_exp2: bool = True, block_m: int | None = None, block_n: int | None = None, block_k: int | None = None, num_warps: int | None = None, num_stages: int = 2, autotune: bool = True, grad_scale: torch.Tensor | None = None, compute_grad_x: bool = True, compute_grad_y: bool = True, cost_scale: float = 1.0, label_x: torch.Tensor | None = None, label_y: torch.Tensor | None = None, label_cost_matrix: torch.Tensor | None = None, lambda_x: float = 1.0, lambda_y: float = 0.0) -\u003e tuple[torch.Tensor, torch.Tensor]",
+      "source": {
+        "file": "torchmatch/transport/samples/kernels/grad_sqeuclid.py",
+        "line": 941
+      },
+      "parent": "torchmatch.transport.samples.kernels.grad_sqeuclid"
+    },
+    {
+      "id": "torchmatch.transport.samples.kernels.streaming_sqeuclid",
+      "kind": "module",
+      "path": [
+        "torchmatch",
+        "transport",
+        "samples",
+        "kernels",
+        "streaming_sqeuclid"
+      ],
+      "signature": "module torchmatch.transport.samples.kernels.streaming_sqeuclid",
+      "summary": "Sinkhorn OT with streaming softmax and shifted potentials.",
+      "description": "This module implements a reformulated Sinkhorn algorithm that aligns exactly with\nstreaming-softmax's interface, enabling potential future integration with optimized\nstreaming-softmax kernels.",
+      "source": {
+        "file": "torchmatch/transport/samples/kernels/streaming_sqeuclid.py",
+        "line": 1
+      },
+      "parent": "torchmatch.transport.samples.kernels"
+    },
+    {
+      "id": "torchmatch.transport.samples.kernels.streaming_sqeuclid.precompute_sinkhorn_inputs",
+      "kind": "function",
+      "path": [
+        "torchmatch",
+        "transport",
+        "samples",
+        "kernels",
+        "streaming_sqeuclid",
+        "precompute_sinkhorn_inputs"
+      ],
+      "signature": "def precompute_sinkhorn_inputs(x: torch.Tensor, y: torch.Tensor, a: torch.Tensor, b: torch.Tensor, eps: float, cost_scale: float = 1.0) -\u003e tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]",
+      "summary": "Precompute static bias components.",
+      "description": "Args:\n    x: Source points [n, d]\n    y: Target points [m, d]\n    a: Source marginal weights [n]\n    b: Target marginal weights [m]\n    eps: Regularization parameter\n    cost_scale: Cost scaling (1.0 for full ||x-y||², 0.5 for half ||x-y||²/2)\n\nReturns:\n    alpha: Source squared norms [n] = cost_scale * ||x||²\n    beta: Target squared norms [m] = cost_scale * ||y||²\n    gamma: Scaled log source weights [n] = eps * log(a) (for g-update)\n    delta: Scaled log target weights [m] = eps * log(b) (for f-update)\n\nNotes:\n    - For cost_scale=1.0: full squared Euclidean C = ||x-y||²\n    - For cost_scale=0.5: half squared Euclidean C = ||x-y||²/2\n    - Use sinkhorn_lse() with raw x, y coordinates (not pre-scaled Q, K)",
+      "source": {
+        "file": "torchmatch/transport/samples/kernels/streaming_sqeuclid.py",
+        "line": 69
+      },
+      "parent": "torchmatch.transport.samples.kernels.streaming_sqeuclid"
+    },
+    {
+      "id": "torchmatch.transport.samples.kernels.streaming_sqeuclid.compute_bias_f",
+      "kind": "function",
+      "path": [
+        "torchmatch",
+        "transport",
+        "samples",
+        "kernels",
+        "streaming_sqeuclid",
+        "compute_bias_f"
+      ],
+      "signature": "def compute_bias_f(g: torch.Tensor, beta: torch.Tensor, delta: torch.Tensor, eps: float) -\u003e torch.Tensor",
+      "summary": "Compute pre-scaled bias for f-update: u = (ĝ + δ)/ε.",
+      "description": "Args:\n    g: Current g potential [m]\n    beta: Target squared norms [m] = cost_scale * ||y||²\n    delta: Scaled log target weights [m] = eps * log(b)\n    eps: Regularization parameter\n\nReturns:\n    u: Pre-scaled bias [m] = (g - beta + delta) / eps",
+      "source": {
+        "file": "torchmatch/transport/samples/kernels/streaming_sqeuclid.py",
+        "line": 109
+      },
+      "parent": "torchmatch.transport.samples.kernels.streaming_sqeuclid"
+    },
+    {
+      "id": "torchmatch.transport.samples.kernels.streaming_sqeuclid.compute_bias_g",
+      "kind": "function",
+      "path": [
+        "torchmatch",
+        "transport",
+        "samples",
+        "kernels",
+        "streaming_sqeuclid",
+        "compute_bias_g"
+      ],
+      "signature": "def compute_bias_g(f: torch.Tensor, alpha: torch.Tensor, gamma: torch.Tensor, eps: float) -\u003e torch.Tensor",
+      "summary": "Compute pre-scaled bias for g-update: v = (f̂ + γ)/ε.",
+      "description": "Args:\n    f: Current f potential [n]\n    alpha: Source squared norms [n] = cost_scale * ||x||²\n    gamma: Scaled log source weights [n] = eps * log(a)\n    eps: Regularization parameter\n\nReturns:\n    v: Pre-scaled bias [n] = (f - alpha + gamma) / eps",
+      "source": {
+        "file": "torchmatch/transport/samples/kernels/streaming_sqeuclid.py",
+        "line": 130
+      },
+      "parent": "torchmatch.transport.samples.kernels.streaming_sqeuclid"
+    },
+    {
+      "id": "torchmatch.transport.samples.kernels.streaming_sqeuclid.sinkhorn_lse",
+      "kind": "function",
+      "path": [
+        "torchmatch",
+        "transport",
+        "samples",
+        "kernels",
+        "streaming_sqeuclid",
+        "sinkhorn_lse"
+      ],
+      "signature": "def sinkhorn_lse(x: torch.Tensor, y: torch.Tensor, bias: torch.Tensor, eps: float, cost_scale: float = 1.0, damping: float = 1.0, allow_tf32: bool = True, use_exp2: bool = True, block_m: int | None = None, block_n: int | None = None, block_k: int | None = None, num_warps: int | None = None, num_stages: int = 2, autotune: bool = True) -\u003e torch.Tensor",
+      "summary": "Compute shifted potential using the streaming-softmax kernel.",
+      "description": "This computes: out_i = -ε * damping * LSE_j[coord_scale * x_i·y_j / ε + bias_j]\n\nThe kernel applies coord_scale = 2 * cost_scale inside the kernel to scale\nthe dot product, ensuring consistent TF32 rounding between fused and separate\nkernel paths.\n\nArgs:\n    x: Source coordinates [n, d]\n    y: Target coordinates [m, d]\n    bias: Pre-scaled bias [m]\n    eps: Regularization parameter\n    cost_scale: Cost scaling (1.0 for full ||x-y||², 0.5 for half ||x-y||²/2)\n    damping: Unbalanced OT damping (1.0 for balanced)\n    allow_tf32: Enable TF32 for matmul\n    use_exp2: Use exp2/log2 for better numerical stability\n    block_m, block_n, block_k: Manual block sizes (disables autotune)\n    num_warps: Number of warps (disables autotune)\n    num_stages: Number of pipeline stages\n    autotune: Enable autotuning\n\nReturns:\n    out: Shifted potential [n]",
+      "source": {
+        "file": "torchmatch/transport/samples/kernels/streaming_sqeuclid.py",
+        "line": 945
+      },
+      "parent": "torchmatch.transport.samples.kernels.streaming_sqeuclid"
+    },
+    {
+      "id": "torchmatch.transport.samples.kernels.streaming_sqeuclid.sinkhorn_lse_fused",
+      "kind": "function",
+      "path": [
+        "torchmatch",
+        "transport",
+        "samples",
+        "kernels",
+        "streaming_sqeuclid",
+        "sinkhorn_lse_fused"
+      ],
+      "signature": "def sinkhorn_lse_fused(x: torch.Tensor, y: torch.Tensor, g_hat: torch.Tensor, log_w: torch.Tensor, eps: float, cost_scale: float = 1.0, damping: float = 1.0, allow_tf32: bool = True, use_exp2: bool = True, block_m: int | None = None, block_n: int | None = None, block_k: int | None = None, num_warps: int | None = None, num_stages: int = 2, autotune: bool = True) -\u003e torch.Tensor",
+      "summary": "Fused LSE kernel that computes bias in SRAM (matches symmetric kernel interface).",
+      "description": "This computes: out_i = -ε * damping * LSE_j[coord_scale * x_i·y_j / ε + ĝ_j/ε + log(w_j)]\n\nKEY OPTIMIZATION: Load ĝ and log(w) separately and compute bias = ĝ/ε + log(w) in SRAM.\nThis matches the symmetric kernel interface and eliminates Python kernel launch overhead.\n\nArgs:\n    x: Source coordinates [n, d]\n    y: Target coordinates [m, d]\n    g_hat: Shifted potential [m] (ĝ = g - β for f-update)\n    log_w: Log marginal [m] (log(b) for f-update, NOT scaled by eps!)\n    eps: Regularization parameter\n    cost_scale: Cost scaling (1.0 for full, 0.5 for half)\n    damping: Unbalanced OT damping (1.0 for balanced)\n    allow_tf32: Enable TF32 for matmul\n    use_exp2: Use exp2/log2 for numerical stability\n    block_m, block_n, block_k, num_warps: Manual block sizes\n    num_stages: Pipeline stages\n    autotune: Enable autotuning\n\nReturns:\n    out: Shifted potential [n]",
+      "source": {
+        "file": "torchmatch/transport/samples/kernels/streaming_sqeuclid.py",
+        "line": 1101
+      },
+      "parent": "torchmatch.transport.samples.kernels.streaming_sqeuclid"
+    },
+    {
+      "id": "torchmatch.transport.samples.kernels.streaming_sqeuclid.sinkhorn_symmetric_step",
+      "kind": "function",
+      "path": [
+        "torchmatch",
+        "transport",
+        "samples",
+        "kernels",
+        "streaming_sqeuclid",
+        "sinkhorn_symmetric_step"
+      ],
+      "signature": "def sinkhorn_symmetric_step(x: torch.Tensor, y: torch.Tensor, f_hat: torch.Tensor, g_hat: torch.Tensor, log_a: torch.Tensor, log_b: torch.Tensor, eps: float, cost_scale: float = 1.0, alpha: float = 0.5, damping_f: float = 1.0, damping_g: float = 1.0, allow_tf32: bool = True, use_exp2: bool = True, autotune: bool = True, block_m: int | None = None, block_n: int | None = None, block_k: int | None = None, num_warps: int | None = None, num_stages: int = 2, label_x: torch.Tensor | None = None, label_y: torch.Tensor | None = None, label_cost_matrix: torch.Tensor | None = None, lambda_x: float = 1.0, lambda_y: float = 0.0) -\u003e tuple[torch.Tensor, torch.Tensor]",
+      "summary": "Fused symmetric Sinkhorn step: computes both f and g updates in ONE kernel.",
+      "description": "This is the key optimization over separate f/g kernel calls - reduces kernel\nlaunch overhead by 50% and improves GPU occupancy.\n\nKEY: Uses x, y directly (no Q, K pre-allocation). The coord_scale = 2*cost_scale\nis applied inside the kernel, avoiding memory allocation overhead.\n\nArgs:\n    x: Source coordinates [n, d] (NOT pre-scaled!)\n    y: Target coordinates [m, d] (NOT pre-scaled!)\n    f_hat: Current shifted f potential [n]\n    g_hat: Current shifted g potential [m]\n    log_a: Log source weights [n]\n    log_b: Log target weights [m]\n    eps: Regularization parameter\n    cost_scale: Cost scaling (1.0 for full, 0.5 for half cost)\n    alpha: Averaging weight (0.5 for symmetric, 1.0 for full update)\n    damping_f: Unbalanced OT damping for f (1.0 for balanced)\n    damping_g: Unbalanced OT damping for g (1.0 for balanced)\n    allow_tf32: Enable TF32 for matmul\n    use_exp2: Use exp2/log2 optimization\n    autotune: Enable Triton autotuning (recommended)\n    block_m, block_n, block_k: Manual block sizes (disables autotune)\n    num_warps: Number of warps (disables autotune)\n    num_stages: Pipeline stages\n    label_x: int32/int64 labels for x [n] (OTDD)\n    label_y: int32/int64 labels for y [m] (OTDD)\n    label_cost_matrix: W [V, V] label distance matrix (OTDD)\n    lambda_x: Weight for Euclidean cost (default 1.0)\n    lambda_y: Weight for label cost (default 0.0 = no label cost)\n\nReturns:\n    f_hat_new, g_hat_new: Updated shifted potentials",
+      "source": {
+        "file": "torchmatch/transport/samples/kernels/streaming_sqeuclid.py",
+        "line": 1251
+      },
+      "parent": "torchmatch.transport.samples.kernels.streaming_sqeuclid"
+    },
+    {
+      "id": "torchmatch.transport.samples.kernels.streaming_sqeuclid.shifted_to_standard_potentials",
+      "kind": "function",
+      "path": [
+        "torchmatch",
+        "transport",
+        "samples",
+        "kernels",
+        "streaming_sqeuclid",
+        "shifted_to_standard_potentials"
+      ],
+      "signature": "def shifted_to_standard_potentials(f_hat: torch.Tensor, g_hat: torch.Tensor, alpha: torch.Tensor, beta: torch.Tensor) -\u003e tuple[torch.Tensor, torch.Tensor]",
+      "summary": "Convert shifted potentials back to standard form.",
+      "description": "Args:\n    f_hat: Shifted source potential [n]\n    g_hat: Shifted target potential [m]\n    alpha: Source squared norms [n] = cost_scale * ||x||²\n    beta: Target squared norms [m] = cost_scale * ||y||²\n\nReturns:\n    f: Standard source potential [n] = f_hat + alpha\n    g: Standard target potential [m] = g_hat + beta",
+      "source": {
+        "file": "torchmatch/transport/samples/kernels/streaming_sqeuclid.py",
+        "line": 1511
+      },
+      "parent": "torchmatch.transport.samples.kernels.streaming_sqeuclid"
+    },
+    {
+      "id": "torchmatch.transport.samples.kernels.streaming_sqeuclid.standard_to_shifted_potentials",
+      "kind": "function",
+      "path": [
+        "torchmatch",
+        "transport",
+        "samples",
+        "kernels",
+        "streaming_sqeuclid",
+        "standard_to_shifted_potentials"
+      ],
+      "signature": "def standard_to_shifted_potentials(f: torch.Tensor, g: torch.Tensor, alpha: torch.Tensor, beta: torch.Tensor) -\u003e tuple[torch.Tensor, torch.Tensor]",
+      "summary": "Convert standard potentials to shifted form.",
+      "description": "Args:\n    f: Standard source potential [n]\n    g: Standard target potential [m]\n    alpha: Source squared norms [n] = cost_scale * ||x||²\n    beta: Target squared norms [m] = cost_scale * ||y||²\n\nReturns:\n    f_hat: Shifted source potential [n] = f - alpha\n    g_hat: Shifted target potential [m] = g - beta",
+      "source": {
+        "file": "torchmatch/transport/samples/kernels/streaming_sqeuclid.py",
+        "line": 1532
+      },
+      "parent": "torchmatch.transport.samples.kernels.streaming_sqeuclid"
+    }
+  ]
+}

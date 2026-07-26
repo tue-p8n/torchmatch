@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 40" aria-label="torchmatch" role="img">
+  <title>torchmatch</title>
+
+  <!-- points -->
+  <g fill="#E03520" opacity="1.0">
+  <!-- first col -->
+    <circle cx="10"  cy="10" r="3.8" />
+    <circle cx="10"  cy="20" r="3.2" />
+    <circle cx="10"  cy="30" r="3.5" />
+
+  <!-- second col -->
+    <circle cx="25"  cy="10" r="2.5" />
+    <circle cx="25"  cy="20" r="3.5" />
+    <circle cx="25"  cy="30" r="2.5" />
+
+  <!-- thrid col -->
+    <circle cx="40"  cy="10" r="3.0" />
+    <circle cx="40"  cy="20" r="2.9" />
+    <circle cx="40"  cy="30" r="3.3" />
+  </g>
+
+  <text x="50" y="28"
+    font-family="monospace"
+    font-size="26" font-weight="800" fill="white">torchmatch</text>
+</svg>

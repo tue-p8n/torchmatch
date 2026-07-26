@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "slug": "laptop_intel-i7-12700h_nvidia-rtx-a1000",
+  "machine_type": "laptop",
+  "cpu": {
+    "brand": "12th Gen Intel(R) Core(TM) i7-12700H",
+    "short": "intel-i7-12700h",
+    "physical_cores": 14,
+    "logical_cores": 20
+  },
+  "gpu": {
+    "brand": "NVIDIA RTX A1000 Laptop GPU",
+    "short": "nvidia-rtx-a1000",
+    "compute_capability": "8.6"
+  },
+  "ram": {
+    "total_gb": 15
+  },
+  "os": {
+    "name": "Linux"
+  },
+  "submitted_by": "khwstolle",
+  "notes": ""
+}

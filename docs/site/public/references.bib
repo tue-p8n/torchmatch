@@ -1,0 +1,529 @@
+% torchmatch bibliography. Single source of truth for all references in
+% the documentation. Every [Key] cited in the docs corresponds to an
+% entry below; the unified bibliography page (/references) renders
+% these entries in a human-readable form.
+%
+% Convention for new citations:
+%   1. Add the entry here first.
+%   2. Cite it in prose using the [Key] form, with brackets escaped
+%      (\[Key\]) so markdown does not treat it as a reference-style link.
+%   3. List the cited key under "References" at the bottom of the page.
+%   4. Update /references if a new entry is introduced.
+%
+% Each entry below carries a short annotation in a comment block above
+% it, explaining the paper's role in the LAP literature and (where
+% applicable) its relation to a torchmatch implementation. These
+% comments are for readers of the .bib file; the `note` fields inside
+% each entry are intended for rendered bibliographies.
+
+
+% Foundational result on bipartite matchings and minimum vertex covers
+% (later named "König's theorem"). No algorithm, but the structural
+% duality is the substrate that the Hungarian method later
+% operationalizes. Original is in Hungarian; secondary literature
+% provides English summaries.
+@article{Konig1931,
+  author = {K{\H o}nig, D{\'e}nes},
+  title = {Gr{\'a}fok {\'e}s m{\'a}trixok},
+  journal = {Matematikai {\'e}s Fizikai Lapok},
+  year = {1931},
+  volume = {38},
+  pages = {116--119},
+  note = {Hungarian. Origin of K{\H o}nig's theorem on bipartite matchings and
+          covers.},
+}
+
+
+% Weighted-edge extension of König's theorem. Provides the
+% dual-feasibility characterization that primal-dual LAP algorithms
+% rely on. Translated to English by Kuhn in 1955 as "On Combinatorial
+% Properties of Matrices", Logistics Papers Issue 11, George Washington
+% University.
+@article{Egervary1931,
+  author = {Egerv{\'a}ry, Jen{\H o}},
+  title = {Matrixok kombinatorius tulajdons{\'a}gair{\'o}l},
+  journal = {Matematikai {\'e}s Fizikai Lapok},
+  year = {1931},
+  volume = {38},
+  pages = {16--28},
+  note = {Hungarian. Weighted extension of K{\H o}nig's theorem. Translated to
+          English by H. W. Kuhn (1955) as ``On Combinatorial Properties of
+          Matrices'', Logistics Papers Issue 11, George Washington University.},
+}
+
+
+% The paper that coined "Hungarian method" (in tribute to König and
+% Egerváry) and first gave an explicit O(n^4) algorithm for the LAP.
+% Built on Egerváry's 1931 weighted duality and reformulated it into a
+% primal-dual procedure. The foundational reference for everything in
+% torchmatch's Hungarian sub-family.
+@article{Kuhn1955,
+  author = {Kuhn, Harold W.},
+  title = {The {H}ungarian method for the assignment problem},
+  journal = {Naval Research Logistics Quarterly},
+  year = {1955},
+  volume = {2},
+  number = {1--2},
+  pages = {83--97},
+  doi = {10.1002/nav.3800020109},
+  note = {Coined the name ``Hungarian method'' in tribute to K{\H o}nig and
+          Egerv{\'a}ry; first explicit $O(n^4)$ algorithm for the LAP.},
+}
+
+
+% The six-step primed/starred-zeros state machine. Mechanically clearer
+% than Kuhn's original presentation and remains the canonical textbook
+% description. Implemented in torchmatch as `munkres` (cuda/munkres.cu).
+@article{Munkres1957,
+  author = {Munkres, James},
+  title = {Algorithms for the assignment and transportation problems},
+  journal = {Journal of the Society for Industrial and Applied Mathematics},
+  year = {1957},
+  volume = {5},
+  number = {1},
+  pages = {32--38},
+  doi = {10.1137/0105003},
+  note = {Six-step state machine on primed and starred zeros under row/column
+          covers; canonical textbook formulation of the Hungarian method.
+          Implemented as \texttt{torchmatch.munkres}.},
+}
+
+
+% Independent SSP-style refinement bringing the Hungarian bound from
+% O(n^4) to O(n^3). Less well known than Edmonds & Karp's 1972 paper
+% but earlier; introduces the shortest-augmenting-path technique
+% applied to the assignment problem specifically.
+@article{Tomizawa1971,
+  author = {Tomizawa, Nobuaki},
+  title = {On some techniques useful for solution of transportation network
+           problems},
+  journal = {Networks},
+  year = {1971},
+  volume = {1},
+  number = {2},
+  pages = {173--194},
+  doi = {10.1002/net.3230010206},
+  note = {Independent reduction of the Hungarian method to $O(n^3)$ via shortest
+          augmenting paths; predates Edmonds \& Karp (1972).},
+}
+
+
+% The other independent route to the O(n^3) bound for assignment and
+% min-cost-flow problems. Wider scope than Tomizawa, since it covers
+% general network flows; both reach the same asymptotic on the LAP.
+@article{EdmondsKarp1972,
+  author = {Edmonds, Jack and Karp, Richard M.},
+  title = {Theoretical improvements in algorithmic efficiency for network flow
+           problems},
+  journal = {Journal of the ACM},
+  year = {1972},
+  volume = {19},
+  number = {2},
+  pages = {248--264},
+  doi = {10.1145/321694.321699},
+  note = {Independent $O(n^3)$ improvement to the Hungarian method via shortest
+          augmenting paths in network flow; contemporary with [Tomizawa1971].},
+}
+
+
+% Textbook reformulation of the Hungarian inner loop as a BFS that
+% discovers all vertex-disjoint augmenting paths per outer iteration.
+% Same O(n^3) asymptotic, larger per-iteration work, much more exposed
+% parallelism. Implemented in torchmatch as `lawler` (cuda/lawler.cu).
+@book{Lawler1976,
+  author = {Lawler, Eugene L.},
+  title = {Combinatorial Optimization: Networks and Matroids},
+  publisher = {Holt, Rinehart and Winston},
+  year = {1976},
+  address = {New York},
+  isbn = {0-03-084866-0},
+  note = {Tree-augmentation reformulation of the Hungarian inner loop; basis for
+          the GPU-parallel BFS structure used in \texttt{torchmatch.lawler}.},
+}
+
+
+% The original auction algorithm, first circulated as an MIT LIDS
+% working paper (May 1979). Available at
+% web.mit.edu/dimitrib/www/Bertsekas_Auction_Distributed_1979.pdf.
+% The widely cited follow-up is [Bertsekas1988] in Annals of Operations
+% Research, which introduces ε-scaling. Not implemented in torchmatch.
+@techreport{Bertsekas1979,
+  author = {Bertsekas, Dimitri P.},
+  title = {A distributed algorithm for the assignment problem},
+  institution = {Laboratory for Information and Decision Systems, MIT},
+  year = {1979},
+  month = {May},
+  type = {Working paper},
+  url = {https://web.mit.edu/dimitrib/www/Bertsekas_Auction_Distributed_1979.pdf
+         },
+  note = {Original distributed-bidding (``auction'') algorithm for the LAP;
+          precursor to the {$\varepsilon$}-scaling version in [Bertsekas1988].},
+}
+
+
+% The fast Dijkstra-based successive-shortest-path procedure. Defines
+% the column-reduction warm start and the reduction-transfer step that
+% give the JV constant factor its empirical edge. The de facto CPU
+% reference for dense LAPs. Implemented in torchmatch as the
+% jonker_scalar / jonker_dense / jonker_compact family
+% (cpu/jonker_*.{h,cpp}).
+@article{JonkerVolgenant1987,
+  author = {Jonker, Roy and Volgenant, Anton},
+  title = {A shortest augmenting path algorithm for dense and sparse linear
+           assignment problems},
+  journal = {Computing},
+  year = {1987},
+  volume = {38},
+  number = {4},
+  pages = {325--340},
+  doi = {10.1007/BF02278710},
+  note = {Dijkstra-based SSP with column-reduction warm start and reduction
+          transfer; basis for \texttt{torchmatch.jonker\_*} on CPU.},
+}
+
+
+% Auction with ε-scaling: the more widely cited version of the auction
+% algorithm, in Annals of Operations Research. Convergence proved under
+% ε-scaling. Not implemented in torchmatch.
+@article{Bertsekas1988,
+  author = {Bertsekas, Dimitri P.},
+  title = {The auction algorithm: a distributed relaxation method for the
+           assignment problem},
+  journal = {Annals of Operations Research},
+  year = {1988},
+  volume = {14},
+  number = {1},
+  pages = {105--123},
+  doi = {10.1007/BF02186476},
+  note = {Auction with {$\varepsilon$}-scaling; convergence guarantees. Widely
+          cited follow-up to [Bertsekas1979].},
+}
+
+
+% Push-relabel cost-scaling for the LAP via its reduction to min-cost
+% flow. Theoretically attractive worst case but rarely beats JV in
+% practice on dense problems. Not implemented in torchmatch.
+@article{GoldbergKennedy1995,
+  author = {Goldberg, Andrew V. and Kennedy, Robert},
+  title = {An efficient cost scaling algorithm for the assignment problem},
+  journal = {Mathematical Programming},
+  year = {1995},
+  volume = {71},
+  number = {2},
+  pages = {153--177},
+  doi = {10.1007/BF01585996},
+  note = {Push-relabel cost-scaling for the LAP via min-cost flow reduction.},
+}
+
+
+% Kuhn's own retrospective; useful entry point for the historiography
+% (clarifies the attribution chain König → Egerváry → Kuhn → Munkres).
+@incollection{Kuhn2010Variants,
+  author = {Kuhn, Harold W.},
+  title = {The {H}ungarian method for the assignment problem},
+  booktitle = {50 Years of Integer Programming 1958--2008},
+  publisher = {Springer},
+  editor = {J{\"u}nger, M. and Liebling, T. M. and Naddef, D. and Nemhauser, G.
+            L. and Pulleyblank, W. R. and Reinelt, G. and Rinaldi, G. and Wolsey,
+            L. A.},
+  year = {2010},
+  pages = {29--47},
+  doi = {10.1007/978-3-540-68279-0_2},
+  note = {Author's retrospective on the 1955 paper; clarifies the attribution
+          chain to K{\H o}nig and Egerv{\'a}ry.},
+}
+
+
+% Comprehensive secondary treatment of the LAP and its variants
+% (rectangular, bottleneck, k-cardinality, quadratic). Originally
+% published in 2009 by SIAM; the 2012 revised reprint has corrections
+% but the same chapter structure.
+@book{BurkardDellAmicoMartello2012,
+  author = {Burkard, Rainer E. and Dell'Amico, Mauro and Martello, Silvano},
+  title = {Assignment Problems},
+  publisher = {Society for Industrial and Applied Mathematics},
+  year = {2012},
+  edition = {Revised reprint},
+  doi = {10.1137/1.9781611972238},
+  isbn = {978-1-61197-222-1},
+  note = {Comprehensive treatment of LAP variants, complexity bounds, and
+          empirical comparisons. Original 2009; this is the 2012 revised reprint
+          with corrections.},
+}
+
+
+% Rectangular-native reformulation of Jonker-Volgenant. Eliminates the
+% pad-and-solve overhead for non-square cost matrices. Implemented in
+% torchmatch as the rectangular-capable jonker_dense
+% (cpu/jonker_dense_*.h) and as the basis for the tiled CUDA backend of
+% jonker_dense_batch (cuda/jonker_tiled.cuh).
+@article{Crouse2016,
+  author = {Crouse, David F.},
+  title = {On implementing {2D} rectangular assignment algorithms},
+  journal = {IEEE Transactions on Aerospace and Electronic Systems},
+  year = {2016},
+  volume = {52},
+  number = {4},
+  pages = {1679--1696},
+  doi = {10.1109/TAES.2016.140952},
+  note = {Rectangular-native reformulation of Jonker-Volgenant; basis for
+          \texttt{torchmatch.jonker\_dense} and the tiled CUDA backend of \texttt
+          {torchmatch.jonker\_dense\_batch}.},
+}
+
+
+% ── Optimal transport ─────────────────────────────────────────────────────────
+
+% Monge's original military-engineering formulation: find a bijective map from
+% excavated soil (d{\'e}blais) to embankment sites (remblais) minimising total
+% transport distance. Geometrically clean but lacks a convex relaxation.
+@article{Monge1781,
+  author = {Monge, Gaspard},
+  title = {M{\'e}moire sur la th{\'e}orie des d{\'e}blais et des remblais},
+  journal = {Histoire de l'Acad{\'e}mie Royale des Sciences},
+  year = {1781},
+  pages = {666--704},
+  note = {Foundational deterministic mass-transport problem; no convex
+          relaxation, making it hard to solve in general.},
+}
+
+
+% Kantorovich's LP relaxation: replace bijections with couplings (joint
+% distributions whose marginals match source and target). Makes OT a linear
+% program with strong duality; dual variables are "prices." Kantorovich shared
+% the 1975 Nobel Prize in Economics with Koopmans for this and related work.
+@article{Kantorovich1942,
+  author = {Kantorovich, Leonid V.},
+  title = {On the translocation of masses},
+  journal = {Doklady Akademii Nauk USSR},
+  year = {1942},
+  volume = {37},
+  number = {7--8},
+  pages = {199--201},
+  note = {LP relaxation of [Monge1781]: couplings instead of bijections;
+          strong duality yields dual variables interpretable as prices.},
+}
+
+
+% Fluid-mechanics (dynamic) interpretation of the 2-Wasserstein distance as
+% minimum kinetic energy. Connects OT to PDEs; gives a variational formulation
+% amenable to gradient-based solvers.
+@article{BenamouBrenier2000,
+  author = {Benamou, Jean-David and Brenier, Yann},
+  title = {A computational fluid mechanics solution to the {M}onge-{K}antorovich
+           mass transfer problem},
+  journal = {Numerische Mathematik},
+  year = {2000},
+  volume = {84},
+  number = {3},
+  pages = {375--393},
+  doi = {10.1007/s002110050263},
+  note = {Dynamic OT: $W_2^2$ equals the minimum kinetic energy to deform one
+          distribution into the other; connects OT to PDEs.},
+}
+
+
+% Introduced EMD as a practical histogram similarity measure for computer
+% vision. Established OT as a tool practitioners would actually use, not just a
+% mathematical object. Also provided an efficient transportation-problem solver.
+@article{Rubner2000,
+  author = {Rubner, Yossi and Tomasi, Carlo and Guibas, Leonidas J.},
+  title = {The earth mover's distance as a metric for image retrieval},
+  journal = {International Journal of Computer Vision},
+  year = {2000},
+  volume = {40},
+  number = {2},
+  pages = {99--121},
+  doi = {10.1023/A:1026543900054},
+  note = {Introduced the Earth Mover's Distance (EMD) as a practical histogram
+          similarity measure; established OT as a tool in computer vision.},
+}
+
+
+% Villani's first monograph: unifies OT geometry, analysis, and probability.
+% Introduces displacement interpolation (geodesic paths between distributions)
+% and establishes OT as a central object in modern mathematics.
+@book{Villani2003,
+  author = {Villani, C{\'e}dric},
+  title = {Topics in Optimal Transportation},
+  publisher = {American Mathematical Society},
+  year = {2003},
+  volume = {58},
+  series = {Graduate Studies in Mathematics},
+  doi = {10.1090/gsm/058},
+  note = {First of Villani's two monographs on OT; introduces displacement
+          interpolation and unifies geometry, analysis, and probability.},
+}
+
+
+% Villani's second monograph: comprehensive treatment of regularity theory,
+% the Brenier map, curvature conditions (CD(K,N)), and probabilistic
+% applications. Villani received the Fields Medal in 2010 partly for this work.
+@book{Villani2008,
+  author = {Villani, C{\'e}dric},
+  title = {Optimal Transport: Old and New},
+  publisher = {Springer},
+  year = {2008},
+  volume = {338},
+  series = {Grundlehren der mathematischen Wissenschaften},
+  doi = {10.1007/978-3-540-71050-9},
+  note = {Second of Villani's monographs; comprehensive treatment including the
+          Brenier map, regularity, and geometric applications. Fields Medal
+          (2010) awarded partly for this body of work.},
+}
+
+
+% Convergence of the alternating row-and-column normalisation (Sinkhorn--Knopp
+% iteration) to a doubly stochastic matrix with prescribed row and column sums.
+% The foundational result behind all entropic OT solvers.
+@article{Sinkhorn1967,
+  author = {Sinkhorn, Richard},
+  title = {Diagonal equivalence to matrices with prescribed row and column sums},
+  journal = {The American Mathematical Monthly},
+  year = {1967},
+  volume = {74},
+  number = {4},
+  pages = {402--405},
+  doi = {10.2307/2314570},
+  note = {Proves convergence of the Sinkhorn--Knopp matrix-scaling iteration;
+          foundational for all entropic OT solvers.},
+}
+
+
+% The computational breakthrough for OT in ML. Entropic regularisation
+% turns OT into a Sinkhorn iteration, reducing $O(n^3)$ LP to $O(n^2)$ GPU-
+% friendly matrix operations. Direct ancestor of the LOG_SINKHORN backend.
+@inproceedings{Cuturi2013,
+  author = {Cuturi, Marco},
+  title = {Sinkhorn distances: lightspeed computation of optimal transportation
+           distances},
+  booktitle = {Advances in Neural Information Processing Systems},
+  year = {2013},
+  volume = {26},
+  publisher = {Curran Associates},
+  note = {Entropic regularisation of OT; reduction to Sinkhorn iteration
+          enables large-scale batched OT on GPU. Direct ancestor of the
+          \texttt{LOG\_SINKHORN} backend in torchmatch.},
+}
+
+
+% Wasserstein GAN: uses the 1-Wasserstein distance as a GAN training
+% objective. Gives meaningful gradients even when generated and real
+% distributions have disjoint support (where Jensen-Shannon divergence
+% saturates). Opened the door to OT losses in generative modelling.
+@inproceedings{Arjovsky2017,
+  author = {Arjovsky, Martin and Chintala, Soumith and Bottou, L{\'e}on},
+  title = {Wasserstein generative adversarial networks},
+  booktitle = {International Conference on Machine Learning},
+  year = {2017},
+  volume = {70},
+  pages = {214--223},
+  publisher = {PMLR},
+  note = {1-Wasserstein GAN objective; meaningful gradient signal even under
+          disjoint support, where Jensen-Shannon divergence saturates.},
+}
+
+
+% Sinkhorn divergence: debiases the entropic OT loss to recover a proper
+% divergence that is positive, symmetric, and zero iff the two distributions
+% coincide. Achieved by subtracting the self-transport terms.
+@inproceedings{Genevay2018,
+  author = {Genevay, Aude and Peyr{\'e}, Gabriel and Cuturi, Marco},
+  title = {Learning generative models with {S}inkhorn divergences},
+  booktitle = {International Conference on Artificial Intelligence and
+               Statistics},
+  year = {2018},
+  volume = {84},
+  pages = {1608--1617},
+  publisher = {PMLR},
+  note = {Defines the Sinkhorn divergence by debiasing the entropic OT loss;
+          recovers a proper symmetric divergence zero iff distributions match.},
+}
+
+
+% Unbalanced OT: replaces the hard marginal constraints with KL divergence
+% penalties. Handles distributions with different total mass; robust to
+% outliers. Scaling iteration analogous to balanced Sinkhorn.
+@article{Chizat2018,
+  author = {Chizat, Lena{\"i}c and Peyr{\'e}, Gabriel and Vialard,
+            Fran{\c{c}}ois-Xavier and Schmitzer, Bernhard},
+  title = {Scaling algorithms for unbalanced optimal transport problems},
+  journal = {Mathematics of Computation},
+  year = {2018},
+  volume = {87},
+  number = {314},
+  pages = {2563--2609},
+  doi = {10.1090/mcom/3303},
+  note = {KL-relaxed marginals for unbalanced OT; softened Sinkhorn iteration
+          handles mass differences and is robust to outliers.},
+}
+
+
+% Combines unbalanced marginals with the debiasing from [Genevay2018] to yield
+% the Sinkhorn divergence for unbalanced OT. Convergence analysis in the
+% unbalanced setting. arXiv:1910.12958.
+@article{Sejourne2019,
+  author = {S{\'e}journ{\'e}, Thibault and Feydy, Jean and Vialard,
+            Fran{\c{c}}ois-Xavier and Trouv{\'e}, Alain and Peyr{\'e},
+            Gabriel},
+  title = {Sinkhorn divergences for unbalanced optimal transport},
+  journal = {arXiv preprint arXiv:1910.12958},
+  year = {2019},
+  note = {Extends the Sinkhorn divergence to unbalanced marginals; convergence
+          analysis in the unbalanced setting.},
+}
+
+
+% Log-domain (Gibbs-potential) formulation of the Sinkhorn iteration for
+% numerical stability at small regularisation or large costs. Used in
+% torchmatch's LOG_SINKHORN, SINKHORN_DIVERGENCE, and UNBALANCED_SINKHORN.
+@article{Schmitzer2019,
+  author = {Schmitzer, Bernhard},
+  title = {Stabilized sparse scaling algorithms for entropy regularized
+           transport problems},
+  journal = {SIAM Journal on Scientific Computing},
+  year = {2019},
+  volume = {41},
+  number = {3},
+  pages = {A1443--A1481},
+  doi = {10.1137/16M1106018},
+  note = {Log-domain (Gibbs-potential) Sinkhorn; numerically stable for all
+          regularisation strengths and cost magnitudes.},
+}
+
+
+% Polynomial-time primal network simplex for min-cost flow; the standard exact
+% EMD solver. CPU-only in torchmatch (EXACT_EMD backend). O((n+m)^3 log(n+m))
+% worst-case, typically much faster in practice.
+@article{Orlin1997,
+  author = {Orlin, James B.},
+  title = {A polynomial time primal network simplex algorithm for minimum
+           cost flows},
+  journal = {Mathematical Programming},
+  year = {1997},
+  volume = {78},
+  number = {2},
+  pages = {109--129},
+  doi = {10.1007/BF02614374},
+  note = {Network simplex with polynomial worst-case guarantee; basis for the
+          \texttt{EXACT\_EMD} backend in torchmatch.},
+}
+
+
+% Proves that Maximum Mean Discrepancy (MMD) with energy-distance kernels is
+% equivalent to an OT-based test statistic. The connection is cited when the
+% Sinkhorn divergence converges to the unregularised OT cost and MMD.
+@article{Sejdinovic2013,
+  author = {Sejdinovic, Dino and Sriperumbudur, Bharath and Gretton, Arthur
+            and Fukumizu, Kenji},
+  title = {Equivalence of distance-based and {RKHS}-based statistics in
+           hypothesis testing},
+  journal = {The Annals of Statistics},
+  year = {2013},
+  volume = {41},
+  number = {5},
+  pages = {2263--2291},
+  doi = {10.1214/13-AOS1140},
+  note = {Proves that MMD with energy-distance kernels equals an OT-based
+          statistic; the connection between Sinkhorn divergence, OT, and MMD.},
+}

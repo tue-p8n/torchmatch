@@ -1,0 +1,18 @@
+# Dependencies
+node_modules/
+
+# Nuxt build output
+/.nuxt/
+/.output/
+/.data/
+
+# Link to the output
+/dist
+
+# Derived datasets emitted by scripts/benchmark_aggregate.py
+public/benchmarks.json
+public/machines.json
+
+# Logs / OS junk
+*.log
+.DS_Store
