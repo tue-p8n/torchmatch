@@ -1,8 +1,11 @@
 const repoUrl = "https://github.com/khwstolle/torchmatch";
-const siteUrl = process.env.NUXT_PUBLIC_SITE_URL ?? "https://torchmatch.khws.io";
+const siteUrl =
+  process.env.NUXT_PUBLIC_SITE_URL ?? "https://torchmatch.khws.io";
 
 export default defineNuxtConfig({
-  extends: process.env.DOCYARD_THEME_PATH ? [process.env.DOCYARD_THEME_PATH] : [],
+  extends: process.env.DOCYARD_THEME_PATH
+    ? [process.env.DOCYARD_THEME_PATH]
+    : [],
 
   modules: [
     "@nuxt/eslint",

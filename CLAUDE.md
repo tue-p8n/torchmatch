@@ -242,7 +242,7 @@ with `BUILD_*` environment variables:
   (`-O3 -std=c++17 -fno-fast-math`). When combined with `BUILD_CUDA`,
   also builds `torchmatch._transport_cuda_impl`.
 - `TORCHMATCH_BUILD_STABLE_ABI=1` — adds `-DPy_LIMITED_API=0x030d0000
-  -DTORCH_TARGET_VERSION=0x020a000000000000` to all CPU extension builds and
+-DTORCH_TARGET_VERSION=0x020a000000000000` to all CPU extension builds and
   sets `py_limited_api=True`, producing a `cp313-abi3` wheel that runs with
   any torch ≥ 2.10 and Python ≥ 3.13. CPU-only; not valid with `BUILD_CUDA`.
 

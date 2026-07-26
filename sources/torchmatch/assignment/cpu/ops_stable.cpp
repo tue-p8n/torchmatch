@@ -65,11 +65,11 @@ static inline scalar_t compute_sentinel(const scalar_t *data, int64_t count, int
         }
     }
     STD_TORCH_CHECK(!has_nan,
-                "jonker: cost matrix contains NaN. Use +inf for forbidden pairs; "
-                "NaN signals an upstream bug.");
+                    "jonker: cost matrix contains NaN. Use +inf for forbidden pairs; "
+                    "NaN signals an upstream bug.");
     STD_TORCH_CHECK(!has_neg_inf,
-                "jonker: cost matrix contains -inf. Use +inf for forbidden pairs; "
-                "-inf has no forbidden-edge meaning.");
+                    "jonker: cost matrix contains -inf. Use +inf for forbidden pairs; "
+                    "-inf has no forbidden-edge meaning.");
     return any ? (max_finite + static_cast<scalar_t>(1)) * static_cast<scalar_t>(K + 1)
                : static_cast<scalar_t>(1);
 }
@@ -77,8 +77,9 @@ static inline scalar_t compute_sentinel(const scalar_t *data, int64_t count, int
 Tensor solve_single(const Tensor &cost, SolverFn64 solver64, SolverFn32 solver32) {
     STD_TORCH_CHECK(cost.is_cpu(), "cost must be a CPU tensor");
     STD_TORCH_CHECK(cost.dim() == 2, "cost must be 2D, got ", cost.dim());
-    STD_TORCH_CHECK(cost.scalar_type() == ScT::Double || cost.scalar_type() == ScT::Float,
-                "cost must be float32 or float64");
+    STD_TORCH_CHECK(cost.scalar_type() == ScT::Double ||
+                        cost.scalar_type() == ScT::Float,
+                    "cost must be float32 or float64");
 
     const int n_rows = static_cast<int>(cost.size(0));
     const int n_cols = static_cast<int>(cost.size(1));
@@ -154,8 +155,9 @@ Tensor solve_single(const Tensor &cost, SolverFn64 solver64, SolverFn32 solver32
 Tensor solve_batch(const Tensor &costs, SolverFn64 solver64, SolverFn32 solver32) {
     STD_TORCH_CHECK(costs.is_cpu(), "costs must be a CPU tensor");
     STD_TORCH_CHECK(costs.dim() == 3, "costs must be 3D (B, N, M), got ", costs.dim());
-    STD_TORCH_CHECK(costs.scalar_type() == ScT::Double || costs.scalar_type() == ScT::Float,
-                "costs must be float32 or float64");
+    STD_TORCH_CHECK(costs.scalar_type() == ScT::Double ||
+                        costs.scalar_type() == ScT::Float,
+                    "costs must be float32 or float64");
 
     const int64_t B = costs.size(0);
     const int n_rows = static_cast<int>(costs.size(1));
@@ -268,8 +270,9 @@ std::tuple<Tensor, Tensor, Tensor, Tensor>
 solve_batch_unpacked(const Tensor &costs, SolverFn64 solver64, SolverFn32 solver32) {
     STD_TORCH_CHECK(costs.is_cpu(), "costs must be a CPU tensor");
     STD_TORCH_CHECK(costs.dim() == 3, "costs must be 3D (B, N, M), got ", costs.dim());
-    STD_TORCH_CHECK(costs.scalar_type() == ScT::Double || costs.scalar_type() == ScT::Float,
-                "costs must be float32 or float64");
+    STD_TORCH_CHECK(costs.scalar_type() == ScT::Double ||
+                        costs.scalar_type() == ScT::Float,
+                    "costs must be float32 or float64");
 
     const int64_t B = costs.size(0);
     const int n_rows = static_cast<int>(costs.size(1));
@@ -277,9 +280,9 @@ solve_batch_unpacked(const Tensor &costs, SolverFn64 solver64, SolverFn32 solver
 
     if (B == 0 || n_rows == 0 || n_cols == 0) {
         auto empty_matches = ts::empty({B, (int64_t)n_rows, (int64_t)2}, ScT::Long);
-        auto empty_ur     = ts::empty({B, (int64_t)n_rows}, ScT::Long);
-        auto empty_uc     = ts::empty({B, (int64_t)n_cols}, ScT::Long);
-        auto zero_nm      = ts::full({B}, 0.0, ScT::Long);
+        auto empty_ur = ts::empty({B, (int64_t)n_rows}, ScT::Long);
+        auto empty_uc = ts::empty({B, (int64_t)n_cols}, ScT::Long);
+        auto zero_nm = ts::full({B}, 0.0, ScT::Long);
         return {empty_matches, empty_ur, empty_uc, zero_nm};
     }
 
@@ -345,20 +348,20 @@ solve_batch_unpacked(const Tensor &costs, SolverFn64 solver64, SolverFn32 solver
         fill_raw(solver32, costs_c.const_data_ptr<float>(), 0.0f);
 
     auto matches_t = ts::full({B, (int64_t)n_rows, (int64_t)2}, -1.0, ScT::Long);
-    auto ur_t      = ts::full({B, (int64_t)n_rows}, -1.0, ScT::Long);
-    auto uc_t      = ts::full({B, (int64_t)n_cols}, -1.0, ScT::Long);
-    auto nm_t      = ts::full({B}, 0.0, ScT::Long);
+    auto ur_t = ts::full({B, (int64_t)n_rows}, -1.0, ScT::Long);
+    auto uc_t = ts::full({B, (int64_t)n_cols}, -1.0, ScT::Long);
+    auto nm_t = ts::full({B}, 0.0, ScT::Long);
 
-    int64_t *m_ptr   = matches_t.mutable_data_ptr<int64_t>();
+    int64_t *m_ptr = matches_t.mutable_data_ptr<int64_t>();
     int64_t *ur_ptr2 = ur_t.mutable_data_ptr<int64_t>();
-    int64_t *uc_ptr  = uc_t.mutable_data_ptr<int64_t>();
-    int64_t *nm_ptr  = nm_t.mutable_data_ptr<int64_t>();
+    int64_t *uc_ptr = uc_t.mutable_data_ptr<int64_t>();
+    int64_t *nm_ptr = nm_t.mutable_data_ptr<int64_t>();
 
     for (int64_t b = 0; b < B; ++b) {
         const int64_t *rtc = raw_ptr + b * K;
-        int64_t *mb  = m_ptr  + b * n_rows * 2;
+        int64_t *mb = m_ptr + b * n_rows * 2;
         int64_t *urb = ur_ptr2 + b * n_rows;
-        int64_t *ucb = uc_ptr  + b * n_cols;
+        int64_t *ucb = uc_ptr + b * n_cols;
 
         std::vector<bool> col_used(n_cols, false);
 
@@ -366,7 +369,7 @@ solve_batch_unpacked(const Tensor &costs, SolverFn64 solver64, SolverFn32 solver
         for (int i = 0; i < n_rows; ++i) {
             int64_t j = rtc[i];
             if (j >= 0 && j < n_cols) {
-                mb[nm * 2]     = i;
+                mb[nm * 2] = i;
                 mb[nm * 2 + 1] = j;
                 ++nm;
                 col_used[j] = true;
@@ -415,8 +418,9 @@ jonker_compact_batch_unpacked_cpu(const Tensor &costs) {
 Tensor jonker_scalar_cpu(const Tensor &cost) {
     STD_TORCH_CHECK(cost.is_cpu(), "cost must be a CPU tensor");
     STD_TORCH_CHECK(cost.dim() == 2, "cost must be 2D, got ", cost.dim());
-    STD_TORCH_CHECK(cost.scalar_type() == ScT::Double || cost.scalar_type() == ScT::Float,
-                "cost must be float32 or float64");
+    STD_TORCH_CHECK(cost.scalar_type() == ScT::Double ||
+                        cost.scalar_type() == ScT::Float,
+                    "cost must be float32 or float64");
 
     const intptr_t nr = cost.size(0);
     const intptr_t nc = cost.size(1);
@@ -430,12 +434,13 @@ Tensor jonker_scalar_cpu(const Tensor &cost) {
     std::vector<int64_t> a(k), b(k);
 
     const int rc = solve_rectangular_linear_sum_assignment(
-        nr, nc, cost_f64.mutable_data_ptr<double>(), /*maximize=*/false, a.data(), b.data());
+        nr, nc, cost_f64.mutable_data_ptr<double>(), /*maximize=*/false, a.data(),
+        b.data());
 
     STD_TORCH_CHECK(rc != RECTANGULAR_LSAP_INVALID,
-                "jonker_scalar: cost contains NaN or -inf");
+                    "jonker_scalar: cost contains NaN or -inf");
     STD_TORCH_CHECK(rc != RECTANGULAR_LSAP_INFEASIBLE,
-                "jonker_scalar: no feasible assignment (all rows blocked)");
+                    "jonker_scalar: no feasible assignment (all rows blocked)");
     STD_TORCH_CHECK(rc == 0, "jonker_scalar: solver returned ", rc);
 
     int64_t *out_ptr = out.mutable_data_ptr<int64_t>();
@@ -460,11 +465,12 @@ STABLE_TORCH_LIBRARY_FRAGMENT(assignment, m) {
 }
 
 STABLE_TORCH_LIBRARY_IMPL(assignment, CPU, m) {
-    m.impl("jonker_scalar",                 TORCH_BOX(&jonker_scalar_cpu));
-    m.impl("jonker_dense",                  TORCH_BOX(&jonker_dense_cpu));
-    m.impl("jonker_compact",                TORCH_BOX(&jonker_compact_cpu));
-    m.impl("jonker_dense_batch",            TORCH_BOX(&jonker_dense_batch_cpu));
-    m.impl("jonker_compact_batch",          TORCH_BOX(&jonker_compact_batch_cpu));
-    m.impl("jonker_dense_batch_unpacked",   TORCH_BOX(&jonker_dense_batch_unpacked_cpu));
-    m.impl("jonker_compact_batch_unpacked", TORCH_BOX(&jonker_compact_batch_unpacked_cpu));
+    m.impl("jonker_scalar", TORCH_BOX(&jonker_scalar_cpu));
+    m.impl("jonker_dense", TORCH_BOX(&jonker_dense_cpu));
+    m.impl("jonker_compact", TORCH_BOX(&jonker_compact_cpu));
+    m.impl("jonker_dense_batch", TORCH_BOX(&jonker_dense_batch_cpu));
+    m.impl("jonker_compact_batch", TORCH_BOX(&jonker_compact_batch_cpu));
+    m.impl("jonker_dense_batch_unpacked", TORCH_BOX(&jonker_dense_batch_unpacked_cpu));
+    m.impl("jonker_compact_batch_unpacked",
+           TORCH_BOX(&jonker_compact_batch_unpacked_cpu));
 }

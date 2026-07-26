@@ -63,8 +63,10 @@ def _ext_modules():
 
     mods = []
     assignment_ops = "ops_stable.cpp" if BUILD_STABLE_ABI else "ops.cpp"
-    transport_ops  = "ops_stable.cpp" if BUILD_STABLE_ABI else "ops.cpp"
-    transport_emd  = "exact_emd_op_stable.cpp" if BUILD_STABLE_ABI else "exact_emd_op.cpp"
+    transport_ops = "ops_stable.cpp" if BUILD_STABLE_ABI else "ops.cpp"
+    transport_emd = (
+        "exact_emd_op_stable.cpp" if BUILD_STABLE_ABI else "exact_emd_op.cpp"
+    )
 
     if BUILD_CPU:
         mods.append(
@@ -149,7 +151,10 @@ mods = _ext_modules()
 if mods:
     from torch.utils.cpp_extension import BuildExtension
 
-    setup_kwargs: dict = {"ext_modules": mods, "cmdclass": {"build_ext": BuildExtension}}
+    setup_kwargs: dict = {
+        "ext_modules": mods,
+        "cmdclass": {"build_ext": BuildExtension},
+    }
     if BUILD_STABLE_ABI:
         setup_kwargs["options"] = {"bdist_wheel": {"py_limited_api": "cp313"}}
     setup(**setup_kwargs)

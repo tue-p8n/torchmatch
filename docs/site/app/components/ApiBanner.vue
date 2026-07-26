@@ -28,9 +28,13 @@ const show = computed(() => props.api === "match" || props.api === "direct");
       <template v-else-if="api === 'match'">
         <strong>Dispatcher guide.</strong>
         The underlying ops are documented in the
-        <NuxtLink to="/algorithms/assignment/reference">assignment reference</NuxtLink>
+        <NuxtLink to="/algorithms/assignment/reference"
+          >assignment reference</NuxtLink
+        >
         and
-        <NuxtLink to="/algorithms/transport/reference">transport reference</NuxtLink>.
+        <NuxtLink to="/algorithms/transport/reference"
+          >transport reference</NuxtLink
+        >.
       </template>
     </span>
   </div>

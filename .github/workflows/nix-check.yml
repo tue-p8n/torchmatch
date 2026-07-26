@@ -35,4 +35,4 @@ jobs:
         # CUDA variants need a CUDA-capable builder; the CPU variant is
         # the only one we can build on stock GitHub runners. This catches
         # uv2nix overlay drift that `nix flake check` only evaluates.
-        run: nix build .#torchmatch-cpu --no-write-lock-file
+        run: nix build .#torchmatch --no-write-lock-file
