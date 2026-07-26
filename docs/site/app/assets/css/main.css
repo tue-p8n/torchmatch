@@ -368,50 +368,6 @@
   text-decoration-thickness: 2px;
 }
 
-.docs-prose :where(ul, ol) {
-  padding-left: 1.4rem;
-  margin-block: 0.9em;
-}
-.docs-prose :where(ul) {
-  list-style: none;
-  padding-left: 0;
-}
-.docs-prose :where(ul) > li {
-  position: relative;
-  padding-left: 1.25rem;
-  margin-block: 0.35em;
-}
-.docs-prose :where(ul) > li::before {
-  content: "";
-  position: absolute;
-  left: 0;
-  top: 0.7em;
-  width: 6px;
-  height: 1px;
-  background: var(--color-primary-500);
-}
-.docs-prose :where(ol) {
-  list-style: none;
-  counter-reset: docs-ol;
-  padding-left: 0;
-}
-.docs-prose :where(ol) > li {
-  counter-increment: docs-ol;
-  position: relative;
-  padding-left: 2.25rem;
-  margin-block: 0.35em;
-}
-.docs-prose :where(ol) > li::before {
-  content: counter(docs-ol, decimal-leading-zero);
-  position: absolute;
-  left: 0;
-  top: 0.05em;
-  font-family: var(--font-mono);
-  font-size: 0.78em;
-  letter-spacing: 0.04em;
-  color: var(--color-primary-500);
-}
-
 .docs-prose :where(blockquote) {
   margin-block: 1.25rem;
   padding: 0.85rem 1.15rem;
