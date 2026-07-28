@@ -15,12 +15,27 @@
   variant,
 }: let
   testsDir = ../tests;
+
+  # Triton's libcuda_dirs() shells out to `ldconfig` to find libcuda.so.1
+  # unless TRITON_LIBCUDA_PATH is already set, and this image has no
+  # ldconfig. Apptainer/Singularity's --nv bind-mounts the host driver
+  # libraries into the fixed path /.singularity.d/libs regardless of where
+  # they actually live on the host, so point Triton there when that
+  # directory is present. Docker's --gpus all (NVIDIA Container Toolkit)
+  # doesn't create /.singularity.d/libs and needs no such override -- it
+  # puts libcuda.so.1 somewhere ldconfig-discoverable already.
+  entrypoint = pkgs.writeShellScriptBin "torchmatch-bench-entrypoint" ''
+    if [ -d /.singularity.d/libs ] && [ -z "''${TRITON_LIBCUDA_PATH:-}" ]; then
+      export TRITON_LIBCUDA_PATH=/.singularity.d/libs
+    fi
+    exec ${variant.venv}/bin/python3.13 -m torchmatch.bench "$@"
+  '';
 in
   pkgs.dockerTools.streamLayeredImage {
     name = "ghcr.io/tue-p8n/torchmatch/bench";
     tag = "latest";
 
-    contents = [variant.venv pkgs.bashInteractive pkgs.coreutils];
+    contents = [variant.venv pkgs.bashInteractive pkgs.coreutils entrypoint];
 
     extraCommands = ''
       mkdir -p app/benchmarks/results
@@ -29,7 +44,7 @@ in
 
     config = {
       WorkingDir = "/app";
-      Entrypoint = ["${variant.venv}/bin/python3.13" "-m" "torchmatch.bench"];
+      Entrypoint = ["${entrypoint}/bin/torchmatch-bench-entrypoint"];
       # `--results-root`/`--tests-dir` both default to cwd-relative paths
       # (see sources/torchmatch/bench/__main__.py), so a plain bind-mount of
       # the host's benchmarks/results/ over /app/benchmarks/results is all a
