@@ -42,10 +42,14 @@ jobs:
         run: nix build .#bench-image -o bench-image-result
 
       - name: Push to GHCR
+        # --registries-conf /dev/null: the runner's own
+        # /etc/containers/registries.conf is v1-format, which this skopeo
+        # (v2-only) refuses to load. We don't need any registry mirroring
+        # config, so point it at an empty file instead of the broken default.
         run: |
-          nix run nixpkgs#skopeo -- login ghcr.io \
+          nix run nixpkgs#skopeo -- --registries-conf /dev/null login ghcr.io \
             -u "${{ github.actor }}" -p "${{ secrets.GITHUB_TOKEN }}"
           ./bench-image-result \
-            | nix run nixpkgs#skopeo -- copy \
+            | nix run nixpkgs#skopeo -- --registries-conf /dev/null copy \
                 docker-archive:/dev/stdin \
                 docker://ghcr.io/tue-p8n/torchmatch/bench:latest
