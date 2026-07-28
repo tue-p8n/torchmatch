@@ -1,0 +1,48 @@
+name: Publish benchmark image
+
+# Builds nix/bench-image.nix (the cu128 venv + tests/, no libcuda.so.1 -- see
+# that file's header) and pushes it to GHCR so HPC/other Nix-averse hosts can
+# run the benchmark suite via Apptainer or Docker instead of installing Nix.
+# See docs/site/content/3.resources/4.benchmarks/contributing.md.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - sources/**
+      - tests/**
+      - pyproject.toml
+      - uv.lock
+      - nix/**
+      - flake.nix
+      - flake.lock
+      - .github/workflows/bench-image.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: DeterminateSystems/nix-installer-action@v17
+
+      - name: Build the image streamer
+        run: nix build .#bench-image -o bench-image-result
+
+      - name: Push to GHCR
+        run: |
+          nix run nixpkgs#skopeo -- login ghcr.io \
+            -u "${{ github.actor }}" -p "${{ secrets.GITHUB_TOKEN }}"
+          ./bench-image-result \
+            | nix run nixpkgs#skopeo -- copy \
+                docker-archive:/dev/stdin \
+                docker://ghcr.io/tue-p8n/torchmatch/bench:latest

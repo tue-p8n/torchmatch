@@ -15,9 +15,13 @@ The suite covers three files:
 - `benchmark_transport.py` — optimal-transport solvers (Sinkhorn-family backends on CPU/CUDA;
   the `samples.loss` point-cloud solver, GPU only)
 
+Two ways to run it: with Nix (below), or without Nix at all via a
+prebuilt container image — see [Without Nix](#without-nix-apptainer-hpc),
+useful on HPC login/compute nodes where installing Nix isn't practical.
+
 ## Prerequisites
 
-- A clone of [torchmatch](https://github.com/khwstolle/torchmatch).
+- A clone of [torchmatch](https://github.com/tue-p8n/torchmatch).
 - Python 3.13 and `uv` (or any virtualenv tool).
 - A working torchmatch install:
 
@@ -69,6 +73,46 @@ your installed PyTorch wheel.
 
 A full sweep takes 10 to 30 minutes depending on the box.
 
+## Without Nix (Apptainer / HPC)
+
+On a shared HPC login/compute node where installing Nix isn't practical,
+pull the prebuilt image and run it with [Apptainer](https://apptainer.org)
+instead — no Nix, no root, no daemon. The image is rebuilt from `main`
+on every push that touches the solver sources or tests (see
+`.github/workflows/bench-image.yml`), so pull again before a new run to
+pick up changes.
+
+`--pwd /app` is required on every invocation below: Apptainer preserves
+your shell's own working directory by default, which silently writes
+results outside the bind mount instead of into it.
+
+One-time machine registration:
+
+```bash
+mkdir -p benchmarks/results
+apptainer run --nv --pwd /app \
+  --bind "$PWD/benchmarks/results:/app/benchmarks/results" \
+  docker://ghcr.io/tue-p8n/torchmatch/bench:latest \
+  init-machine
+```
+
+Per-release collection:
+
+```bash
+apptainer run --nv --pwd /app \
+  --bind "$PWD/benchmarks/results:/app/benchmarks/results" \
+  docker://ghcr.io/tue-p8n/torchmatch/bench:latest \
+  collect
+```
+
+Same CLI, same output layout, same scrubbing, same 10–30 minute
+runtime as the Nix path above — `--nv` maps the host's NVIDIA driver
+into the container at runtime, so no CUDA toolkit install is needed on
+the host itself. Docker with `--gpus all` works too, provided the
+NVIDIA Container Toolkit is set up on that host (Apptainer's `--nv`
+needs no such extra toolkit — it's the more portable option on a
+cluster you don't administer).
+
 ## What gets scrubbed
 
 The CLI strips the following from the pytest-benchmark JSON before
@@ -90,27 +134,31 @@ You should inspect the JSON yourself before opening the PR. The
 validation CI run will also re-check that no `node`, `release`,
 or `/home/<user>` fragments remain.
 
-## Open the PR
+## Commit and push
 
 ```bash
-git checkout -b bench/<slug>-<short-context>
 git add benchmarks/results/<slug>/
 git commit -m "bench: contribute results for <slug>"
-git push -u origin HEAD
-gh pr create
+git fetch origin main
+git push origin main
 ```
 
-The PR should touch only files under `benchmarks/results/`. The
-benchmark page is rebuilt automatically when the PR is merged, so your results will appear on the site after merge without any further action.
+Push directly to `main` — this repo doesn't use PRs for contributions.
+Commit only files under `benchmarks/results/`. The benchmark page is
+rebuilt automatically on the next docs deploy, and `benchmark-validate`
+runs on the push itself to catch scrubbing/format mistakes.
 
-## Reviewer checklist
+Before pushing, double check:
 
 - [ ] All new files are under `benchmarks/results/<existing-or-new-slug>/`.
 - [ ] If a new slug appears, it ships a `machine.json` alongside.
 - [ ] Filename matches
   `torchmatch-<X.Y.Z>+py<X.Y>+torch<X.Y>+<variant>-<YYYYMMDDTHHMMSSZ>.json`.
-- [ ] `benchmark-validate` GitHub Action is green.
-- [ ] No file outside `benchmarks/results/**` is changed in a results PR.
+- [ ] No file outside `benchmarks/results/**` is staged.
+
+Or just run `nix run .#bench-validate` (or, without Nix, `python
+scripts/benchmark_validate.py benchmarks/results`) before committing —
+the same check CI runs.
 
 ## Re-running on the same machine
 

@@ -138,6 +138,15 @@
           torchmatchWithCuda_13_0 = variants.cu130.package;
           torchmatchWithCuda_13_2 = variants.cu132.package;
           default = variants.cu128.package;
+
+          # OCI image for running the benchmark suite via Apptainer/Docker on
+          # hosts where Nix is undesirable (e.g. HPC). `nix build
+          # .#bench-image` streams a `docker load`-compatible tar to stdout;
+          # see nix/bench-image.nix and .github/workflows/bench-image.yml.
+          bench-image = import ./nix/bench-image.nix {
+            inherit pkgs;
+            variant = variants.cu128;
+          };
         };
 
         # Git Hooks.

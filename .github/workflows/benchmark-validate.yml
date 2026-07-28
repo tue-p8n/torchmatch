@@ -1,11 +1,16 @@
 name: Validate benchmark contributions
 
-# Runs on every PR that touches benchmarks/results/. Confirms the
+# Runs on every push/PR touching benchmarks/results/. Confirms the
 # JSON shape, the slug ↔ machine.json consistency, the canonical
 # filename pattern, and that no host-identifying fields slipped past
-# the scrubber.
+# the scrubber. Contributions land via direct push to main (not PRs),
+# so the push trigger is the one that actually matters day to day.
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - benchmarks/results/**
   pull_request:
     paths:
       - benchmarks/results/**
