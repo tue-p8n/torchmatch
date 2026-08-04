@@ -14,15 +14,15 @@
 // min_in_mat) avoid both a per-call cudaMallocManaged and a per-step
 // cudaMemcpy round-trip.
 
-#include <ATen/ATen.h>
-#include <ATen/cuda/CUDAContext.h>
-#include <c10/cuda/CUDAGuard.h>
 #include <cuda_runtime.h>
-#include <torch/library.h>
+#include <torch/csrc/stable/ops.h>
+#include <torch/csrc/stable/tensor.h>
+#include <torch/headeronly/util/Exception.h>
 
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
+#include <optional>
 
 #include <cub/cub.cuh>
 
@@ -83,12 +83,14 @@ struct MunkresState {
 template <typename data>
 struct MunkresWorkspace {
     MunkresState<data> state;
+    assign_lap::WorkspacePool pool;
     int device = -1;
     bool initialized = false;
     uint num_blocks_reduction = 0;
 
     void allocate(std::size_t size, int dev) {
         device = dev;
+        pool.reset(dev);
 
         const uint num_blocks_4 =
             std::max((uint)std::ceil((size * 1.0) / kColsPerBlockStep4), 1u);
@@ -108,7 +110,7 @@ struct MunkresWorkspace {
         state.log2_data_block_size =
             log2_size + (uint)std::ceil(std::log2((double)kColsPerBlockStep4));
 
-        auto alloc = assign_lap::cca_alloc;
+        auto alloc = [this](std::size_t bytes) { return pool.alloc(bytes); };
         state.slack = static_cast<data *>(alloc(size * size * sizeof(data)));
         state.min_in_rows = static_cast<data *>(alloc(size * sizeof(data)));
         state.min_in_cols = static_cast<data *>(alloc(size * sizeof(data)));
@@ -148,23 +150,12 @@ struct MunkresWorkspace {
     void deallocate() {
         if (!initialized)
             return;
-        auto free = assign_lap::cca_free;
-        free(state.slack);
-        free(state.min_in_rows);
-        free(state.min_in_cols);
-        free(state.zeros);
-        free(state.zeros_size_b);
-        free(state.row_of_star_at_column);
-        // column_of_star_at_row is managed memory; CCA's raw_delete only
-        // handles caching-allocator blocks, so route through cudaFree.
+        // column_of_star_at_row is managed memory, which cannot come from
+        // the caching allocator, so it is freed on its own.
         CUDA_RUNTIME(cudaFree(state.column_of_star_at_row));
-        free(state.cover_row);
-        free(state.cover_column);
-        free(state.column_of_prime_at_row);
-        free(state.row_of_green_at_column);
-        free(state.d_min_in_mat_vect);
         assign_lap::free_cb(state.cb);
-        free(state.cub_temp);
+        // Everything else is pooled: one release frees all of it.
+        pool.release();
         initialized = false;
     }
 };
@@ -562,32 +553,39 @@ static void solve_with_workspace(MunkresWorkspace<data> &ws, cudaStream_t stream
 
 namespace match_munkres {
 
-at::Tensor solve(const at::Tensor &cost, cudaStream_t stream) {
+using Tensor = torch::stable::Tensor;
+namespace ts = torch::stable;
+using ScT = torch::headeronly::ScalarType;
+
+Tensor solve(const Tensor &cost, cudaStream_t stream) {
     const auto rows = cost.size(0);
     const auto cols = cost.size(1);
 
-    auto cost_f = cost.to(at::kFloat);
-    const float sentinel = ::assign_lap::compute_inf_sentinel<float>(cost_f);
-    cost_f = ::assign_lap::rewrite_inf_to_sentinel(cost_f, sentinel);
+    auto cost_f = ts::to(cost, ScT::Float);
+    const float sentinel = assign_lap::compute_inf_sentinel<float>(cost_f, stream);
+    cost_f = assign_lap::rewrite_inf_to_sentinel(cost_f, sentinel, stream);
 
     // Transpose + pad to (K, K) column-major. After the transpose, what
     // was row-major (rows, cols) becomes the column-major layout of the
     // original; the narrow() call places it in the top-left (cols, rows)
     // sub-block of the K-square pad.
-    auto cost_cm = cost_f.t().contiguous();
+    auto cost_cm = ts::contiguous(ts::transpose(cost_f, 0, 1));
     const auto K = std::max(rows, cols);
-    at::Tensor cost_sq;
+    Tensor cost_sq;
     if (rows == cols) {
         cost_sq = cost_cm;
     } else {
-        cost_sq = at::full({K, K}, sentinel, cost_cm.options());
-        cost_sq.narrow(0, 0, cols).narrow(1, 0, rows).copy_(cost_cm);
+        cost_sq = ts::full({K, K}, static_cast<double>(sentinel), ScT::Float,
+                           std::nullopt, cost.device());
+        Tensor view = ts::narrow(cost_sq, 0, 0, cols);
+        view = ts::narrow(view, 1, 0, rows);
+        ts::copy_(view, cost_cm);
     }
 
-    const int dev = cost.device().index();
+    const int dev = cost.get_device_index();
     auto ws = g_munkres_cache.acquire(static_cast<std::size_t>(K), dev);
 
-    CUDA_RUNTIME(cudaMemcpyAsync(ws->state.slack, cost_sq.data_ptr<float>(),
+    CUDA_RUNTIME(cudaMemcpyAsync(ws->state.slack, cost_sq.const_data_ptr<float>(),
                                  (std::size_t)K * (std::size_t)K * sizeof(float),
                                  cudaMemcpyDefault, stream));
 

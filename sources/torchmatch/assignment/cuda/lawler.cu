@@ -13,18 +13,18 @@
 // State is held by a `LawlerWorkspace` per (K, device), supplied by
 // `WorkspaceCache`. The coalesced `ControlBlock` holds host-readable
 // flags (currently only `goto_4`); pure device-side iteration scratch
-// (`d_theta`, `d_csr_counter`) lives in plain cudaMalloc buffers so
-// managed-memory pages do not flap host/device on every iteration.
+// (`d_theta`, `d_csr_counter`) is pooled through the workspace cache
+// so managed-memory pages do not flap host/device on every iteration.
 
-#include <ATen/ATen.h>
-#include <ATen/cuda/CUDAContext.h>
-#include <c10/cuda/CUDAGuard.h>
 #include <cuda_runtime.h>
-#include <torch/library.h>
+#include <torch/csrc/stable/ops.h>
+#include <torch/csrc/stable/tensor.h>
+#include <torch/headeronly/util/Exception.h>
 
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
+#include <optional>
 
 #include <cooperative_groups.h>
 
@@ -109,8 +109,8 @@ struct VertexData {
 // `goto_4` flag. Device-only state (e.g. cb->theta) is intentionally
 // NOT placed here: managed-memory pages flap host/device whenever the
 // host touches even one field per iteration, which destroys
-// throughput. Pure device-side state lives in separate cudaMalloc
-// buffers (see TreeWorkspace::d_theta).
+// throughput. Pure device-side state is pooled through the workspace
+// cache instead (see TreeWorkspace::d_theta).
 struct ControlBlock {
     int error_code; // assign_lap::LapErrorCode (reserved)
     int goto_4;     // step_3 -> step_4 transition flag (bool-as-int)
@@ -121,6 +121,7 @@ struct ControlBlock {
 // augmentationPass, compactRowVertices).
 
 struct TreeWorkspace {
+    assign_lap::WorkspacePool pool;
     std::size_t N = 0;
     int device = -1;
     bool initialized = false;
@@ -185,66 +186,56 @@ struct TreeWorkspace {
     void allocate(std::size_t n, int dev) {
         N = n;
         device = dev;
+        pool.reset(dev);
 
-        row_assignments = static_cast<decltype(row_assignments)>(
-            assign_lap::cca_alloc(N * sizeof(int)));
-        col_assignments = static_cast<decltype(col_assignments)>(
-            assign_lap::cca_alloc(N * sizeof(int)));
-        row_covers =
-            static_cast<decltype(row_covers)>(assign_lap::cca_alloc(N * sizeof(int)));
-        col_covers =
-            static_cast<decltype(col_covers)>(assign_lap::cca_alloc(N * sizeof(int)));
+        row_assignments =
+            static_cast<decltype(row_assignments)>(pool.alloc(N * sizeof(int)));
+        col_assignments =
+            static_cast<decltype(col_assignments)>(pool.alloc(N * sizeof(int)));
+        row_covers = static_cast<decltype(row_covers)>(pool.alloc(N * sizeof(int)));
+        col_covers = static_cast<decltype(col_covers)>(pool.alloc(N * sizeof(int)));
 
-        row_is_visited = static_cast<decltype(row_is_visited)>(
-            assign_lap::cca_alloc(N * sizeof(int)));
-        row_parents =
-            static_cast<decltype(row_parents)>(assign_lap::cca_alloc(N * sizeof(int)));
-        row_children =
-            static_cast<decltype(row_children)>(assign_lap::cca_alloc(N * sizeof(int)));
+        row_is_visited =
+            static_cast<decltype(row_is_visited)>(pool.alloc(N * sizeof(int)));
+        row_parents = static_cast<decltype(row_parents)>(pool.alloc(N * sizeof(int)));
+        row_children = static_cast<decltype(row_children)>(pool.alloc(N * sizeof(int)));
 
-        col_is_visited = static_cast<decltype(col_is_visited)>(
-            assign_lap::cca_alloc(N * sizeof(int)));
-        col_parents =
-            static_cast<decltype(col_parents)>(assign_lap::cca_alloc(N * sizeof(int)));
-        col_children =
-            static_cast<decltype(col_children)>(assign_lap::cca_alloc(N * sizeof(int)));
-        col_slack =
-            static_cast<decltype(col_slack)>(assign_lap::cca_alloc(N * sizeof(double)));
+        col_is_visited =
+            static_cast<decltype(col_is_visited)>(pool.alloc(N * sizeof(int)));
+        col_parents = static_cast<decltype(col_parents)>(pool.alloc(N * sizeof(int)));
+        col_children = static_cast<decltype(col_children)>(pool.alloc(N * sizeof(int)));
+        col_slack = static_cast<decltype(col_slack)>(pool.alloc(N * sizeof(double)));
 
-        cost_elements = static_cast<decltype(cost_elements)>(
-            assign_lap::cca_alloc(N * N * sizeof(double)));
-        row_duals =
-            static_cast<decltype(row_duals)>(assign_lap::cca_alloc(N * sizeof(double)));
-        col_duals =
-            static_cast<decltype(col_duals)>(assign_lap::cca_alloc(N * sizeof(double)));
+        cost_elements =
+            static_cast<decltype(cost_elements)>(pool.alloc(N * N * sizeof(double)));
+        row_duals = static_cast<decltype(row_duals)>(pool.alloc(N * sizeof(double)));
+        col_duals = static_cast<decltype(col_duals)>(pool.alloc(N * sizeof(double)));
 
-        vertex_predicates_p = static_cast<decltype(vertex_predicates_p)>(
-            assign_lap::cca_alloc(N * sizeof(bool)));
-        vertex_predicates_a = static_cast<decltype(vertex_predicates_a)>(
-            assign_lap::cca_alloc(N * sizeof(long)));
-        vertices_csr1_elements = static_cast<decltype(vertices_csr1_elements)>(
-            assign_lap::cca_alloc(N * sizeof(int)));
-        vertices_csr2_elements = static_cast<decltype(vertices_csr2_elements)>(
-            assign_lap::cca_alloc(N * sizeof(int)));
+        vertex_predicates_p =
+            static_cast<decltype(vertex_predicates_p)>(pool.alloc(N * sizeof(bool)));
+        vertex_predicates_a =
+            static_cast<decltype(vertex_predicates_a)>(pool.alloc(N * sizeof(long)));
+        vertices_csr1_elements =
+            static_cast<decltype(vertices_csr1_elements)>(pool.alloc(N * sizeof(int)));
+        vertices_csr2_elements =
+            static_cast<decltype(vertices_csr2_elements)>(pool.alloc(N * sizeof(int)));
 
-        col_predicates_p = static_cast<decltype(col_predicates_p)>(
-            assign_lap::cca_alloc(N * sizeof(bool)));
-        col_predicates_a = static_cast<decltype(col_predicates_a)>(
-            assign_lap::cca_alloc(N * sizeof(long)));
-        col_ids_csr_elements = static_cast<decltype(col_ids_csr_elements)>(
-            assign_lap::cca_alloc(N * sizeof(int)));
+        col_predicates_p =
+            static_cast<decltype(col_predicates_p)>(pool.alloc(N * sizeof(bool)));
+        col_predicates_a =
+            static_cast<decltype(col_predicates_a)>(pool.alloc(N * sizeof(long)));
+        col_ids_csr_elements =
+            static_cast<decltype(col_ids_csr_elements)>(pool.alloc(N * sizeof(int)));
 
-        row_predicates_p = static_cast<decltype(row_predicates_p)>(
-            assign_lap::cca_alloc(N * sizeof(bool)));
-        row_predicates_a = static_cast<decltype(row_predicates_a)>(
-            assign_lap::cca_alloc(N * sizeof(long)));
-        row_ids_csr_elements = static_cast<decltype(row_ids_csr_elements)>(
-            assign_lap::cca_alloc(N * sizeof(int)));
+        row_predicates_p =
+            static_cast<decltype(row_predicates_p)>(pool.alloc(N * sizeof(bool)));
+        row_predicates_a =
+            static_cast<decltype(row_predicates_a)>(pool.alloc(N * sizeof(long)));
+        row_ids_csr_elements =
+            static_cast<decltype(row_ids_csr_elements)>(pool.alloc(N * sizeof(int)));
 
-        row_lock =
-            static_cast<decltype(row_lock)>(assign_lap::cca_alloc(N * sizeof(int)));
-        col_lock =
-            static_cast<decltype(col_lock)>(assign_lap::cca_alloc(N * sizeof(int)));
+        row_lock = static_cast<decltype(row_lock)>(pool.alloc(N * sizeof(int)));
+        col_lock = static_cast<decltype(col_lock)>(pool.alloc(N * sizeof(int)));
 
         h_row_assignments = new int[N];
 
@@ -253,9 +244,8 @@ struct TreeWorkspace {
             throw std::runtime_error("lap_tree: failed to allocate ControlBlock");
         }
 
-        d_theta = static_cast<decltype(d_theta)>(assign_lap::cca_alloc(sizeof(double)));
-        d_csr_counter =
-            static_cast<decltype(d_csr_counter)>(assign_lap::cca_alloc(sizeof(int)));
+        d_theta = static_cast<decltype(d_theta)>(pool.alloc(sizeof(double)));
+        d_csr_counter = static_cast<decltype(d_csr_counter)>(pool.alloc(sizeof(int)));
 
         initialized = true;
     }
@@ -263,45 +253,12 @@ struct TreeWorkspace {
     void deallocate() {
         if (!initialized)
             return;
-        assign_lap::cca_free(row_assignments);
-        assign_lap::cca_free(col_assignments);
-        assign_lap::cca_free(row_covers);
-        assign_lap::cca_free(col_covers);
-
-        assign_lap::cca_free(row_is_visited);
-        assign_lap::cca_free(row_parents);
-        assign_lap::cca_free(row_children);
-
-        assign_lap::cca_free(col_is_visited);
-        assign_lap::cca_free(col_parents);
-        assign_lap::cca_free(col_children);
-        assign_lap::cca_free(col_slack);
-
-        assign_lap::cca_free(cost_elements);
-        assign_lap::cca_free(row_duals);
-        assign_lap::cca_free(col_duals);
-
-        assign_lap::cca_free(vertex_predicates_p);
-        assign_lap::cca_free(vertex_predicates_a);
-        assign_lap::cca_free(vertices_csr1_elements);
-        assign_lap::cca_free(vertices_csr2_elements);
-
-        assign_lap::cca_free(col_predicates_p);
-        assign_lap::cca_free(col_predicates_a);
-        assign_lap::cca_free(col_ids_csr_elements);
-
-        assign_lap::cca_free(row_predicates_p);
-        assign_lap::cca_free(row_predicates_a);
-        assign_lap::cca_free(row_ids_csr_elements);
-
-        assign_lap::cca_free(row_lock);
-        assign_lap::cca_free(col_lock);
 
         delete[] h_row_assignments;
 
         assign_lap::free_cb(cb);
-        assign_lap::cca_free(d_theta);
-        assign_lap::cca_free(d_csr_counter);
+        // All device buffers are pooled: one release frees all of them.
+        pool.release();
         initialized = false;
     }
 };
@@ -1062,27 +1019,34 @@ static void solve_with_workspace(TreeWorkspace &ws, const double *cost_host_or_d
 
 namespace match_lawler {
 
-at::Tensor solve(const at::Tensor &cost, cudaStream_t stream) {
+using Tensor = torch::stable::Tensor;
+namespace ts = torch::stable;
+using ScT = torch::headeronly::ScalarType;
+
+Tensor solve(const Tensor &cost, cudaStream_t stream) {
     const auto rows = cost.size(0);
     const auto cols = cost.size(1);
 
-    auto cost_d = cost.to(at::kDouble);
-    const double sentinel = ::assign_lap::compute_inf_sentinel<double>(cost_d);
-    cost_d = ::assign_lap::rewrite_inf_to_sentinel(cost_d, sentinel);
+    auto cost_d = ts::to(cost, ScT::Double);
+    const double sentinel = assign_lap::compute_inf_sentinel<double>(cost_d, stream);
+    cost_d = assign_lap::rewrite_inf_to_sentinel(cost_d, sentinel, stream);
 
     const auto K = std::max(rows, cols);
-    at::Tensor cost_square;
+    Tensor cost_square;
     if (rows == cols) {
-        cost_square = cost_d.contiguous();
+        cost_square = ts::contiguous(cost_d);
     } else {
-        cost_square = at::full({K, K}, sentinel, cost_d.options());
-        cost_square.narrow(0, 0, rows).narrow(1, 0, cols).copy_(cost_d);
+        cost_square =
+            ts::full({K, K}, sentinel, ScT::Double, std::nullopt, cost.device());
+        Tensor view = ts::narrow(cost_square, 0, 0, rows);
+        view = ts::narrow(view, 1, 0, cols);
+        ts::copy_(view, cost_d);
     }
 
-    const int dev = cost.device().index();
+    const int dev = cost.get_device_index();
     auto ws = g_lawler_cache.acquire(static_cast<std::size_t>(K), dev);
 
-    solve_with_workspace(*ws, cost_square.data_ptr<double>(), stream);
+    solve_with_workspace(*ws, cost_square.const_data_ptr<double>(), stream);
 
     return assign_lap::repack_row_to_col(ws->h_row_assignments, rows, cols,
                                          cost.device());

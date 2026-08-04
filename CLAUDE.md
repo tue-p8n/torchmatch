@@ -212,12 +212,18 @@ FakeTensor shapes (`transport/_loader.py`):
 
 - `assignment/cpu/ops.cpp`: defines JV ops. CPU default; JV ops accept
   rectangular (N,M) and pad to square internally.
-- `assignment/cuda/ops.cpp`: `TORCH_LIBRARY_FRAGMENT` adds `munkres`,
-  `hybrid`, `lawler`, tagged `cudagraph_unsafe` (host-side
-  `cudaStreamSynchronize` on managed memory).
+- `assignment/cuda/ops.cpp`: `STABLE_TORCH_LIBRARY_FRAGMENT` adds
+  `munkres`, `hybrid`, `lawler` (host-side `cudaStreamSynchronize` on
+  managed memory). The stable-ABI op-registration path has no way to
+  carry an `at::Tag::cudagraph_unsafe`-equivalent tag, so all four CUDA
+  ops (these three plus `jonker_dense_batch`, whose sentinel computation
+  also does a host sync) instead raise a clear `RuntimeError` at call
+  time if invoked inside CUDA graph capture (`check_not_capturing` in
+  `dispatch.cu`) — call them outside the compiled/captured region under
+  `torch.compile(mode="reduce-overhead")`.
 - `assignment/cuda/dispatch.cu`: CUDA impls for the three primed-zeros ops
-  and `jonker_dense_batch` (single-block-per-problem shared-memory, fully
-  capturable; square only, K ≤ 64).
+  and `jonker_dense_batch` (single-block-per-problem shared-memory; square
+  only, K ≤ 64).
 - Each primed-zeros `.cu` is its own translation unit (shared `__managed__`
   / `__constant__` symbol names would collide).
 - `transport/matrix/cpu/ops.cpp` + `exact_emd_op.cpp`: declares and
@@ -242,9 +248,21 @@ with `BUILD_*` environment variables:
   (`-O3 -std=c++17 -fno-fast-math`). When combined with `BUILD_CUDA`,
   also builds `torchmatch._transport_cuda_impl`.
 - `TORCHMATCH_BUILD_STABLE_ABI=1` — adds `-DPy_LIMITED_API=0x030d0000
--DTORCH_TARGET_VERSION=0x020a000000000000` to all CPU extension builds and
+-DTORCH_TARGET_VERSION=0x020a000000000000` to CPU extension builds and
   sets `py_limited_api=True`, producing a `cp313-abi3` wheel that runs with
-  any torch ≥ 2.10 and Python ≥ 3.13. CPU-only; not valid with `BUILD_CUDA`.
+  any torch ≥ 2.10 and Python ≥ 3.13. `BUILD_CUDA + BUILD_STABLE_ABI` alone
+  is valid and builds cleanly: `torchmatch._assignment_cuda_impl` is
+  stable-ABI end to end (op registration, tensor code and the workspace
+  cache all use `torch::stable`/AOTI), links no CPython symbols, and needs
+  no Python-version-specific tag. It gets
+  `-DTORCH_TARGET_VERSION=0x020a000000000000` on both the host-compiler and
+  nvcc command lines — not `-DPy_LIMITED_API`, which nvcc rejects and the
+  extension does not need — so it carries the same "works against any torch
+  ≥ 2.10" guarantee as the CPU extensions. The constraint that is still
+  fully rejected is `BUILD_CUDA + BUILD_TRANSPORT + BUILD_STABLE_ABI`:
+  `torchmatch._transport_cuda_impl` hasn't been ported to the stable ABI
+  at all yet. Neither the two-way nor the three-way CUDA+stable-ABI
+  combination is exercised by any CI job — both are manual-build-only.
 
 Default `uv build` (no flags) produces a `py3-none-any` wheel containing
 the C++ sources. At first import the JIT path compiles them using the

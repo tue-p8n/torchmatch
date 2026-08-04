@@ -14,7 +14,8 @@
   lib,
   variants,
   defaultVariantName ? "cu128",
-}: let
+}:
+let
   defaultVariant = variants.${defaultVariantName};
 
   # Mirrors devshells.nix's hostGpuHook: `nix run` apps don't source the
@@ -27,15 +28,16 @@
     fi
   '';
 
-  mkVenvApp = {
-    name,
-    variant ? defaultVariant,
-    runtimeInputs ? [],
-    text,
-  }:
+  mkVenvApp =
+    {
+      name,
+      variant ? defaultVariant,
+      runtimeInputs ? [ ],
+      text,
+    }:
     pkgs.writeShellApplication {
       inherit name;
-      runtimeInputs = [variant.venv] ++ runtimeInputs;
+      runtimeInputs = [ variant.venv ] ++ runtimeInputs;
       text = ''
         set -euo pipefail
         ${hostGpuHook}
@@ -43,13 +45,14 @@
       '';
     };
 
-  mkStdlibPythonApp = {
-    name,
-    text,
-  }:
+  mkStdlibPythonApp =
+    {
+      name,
+      text,
+    }:
     pkgs.writeShellApplication {
       inherit name;
-      runtimeInputs = [pkgs.python313];
+      runtimeInputs = [ pkgs.python313 ];
       text = ''
         set -euo pipefail
         ${text}
@@ -81,29 +84,23 @@
     text = ''python3 scripts/benchmark_validate.py benchmarks/results "$@"'';
   };
 
-  perVariantTests = lib.mapAttrs' (vname: variant:
+  perVariantTests = lib.mapAttrs' (
+    vname: variant:
     lib.nameValuePair "test-${vname}" (mkVenvApp {
       name = "test-${vname}";
       variant = variant;
       text = ''pytest tests/ "$@"'';
-    }))
-  variants;
+    })
+  ) variants;
 
-  perVariantLints = lib.mapAttrs' (vname: variant:
+  perVariantLints = lib.mapAttrs' (
+    vname: variant:
     lib.nameValuePair "lint-${vname}" (mkVenvApp {
       name = "lint-${vname}";
       variant = variant;
       text = ''ruff check . "$@"'';
-    }))
-  variants;
-
-  perVariantFormats = lib.mapAttrs' (vname: variant:
-    lib.nameValuePair "format-${vname}" (mkVenvApp {
-      name = "format-${vname}";
-      variant = variant;
-      text = ''ruff format . "$@"'';
-    }))
-  variants;
+    })
+  ) variants;
 
   test = mkVenvApp {
     name = "test";
@@ -115,11 +112,6 @@
     text = ''ruff check . "$@"'';
   };
 
-  format = mkVenvApp {
-    name = "format";
-    text = ''ruff format . "$@"'';
-  };
-
   # Execute notebooks and export them as markdown pages for the docs site.
   # Prerequisites: uv sync --group notebooks  (adds matplotlib, jupyter, nbconvert, jupytext)
   nb-render = mkVenvApp {
@@ -127,14 +119,17 @@
     text = ''python scripts/nb_render.py "$@"'';
   };
 
-  flatApps =
-    {
-      inherit bench-init bench-collect bench-aggregate bench-validate;
-      inherit test lint format;
-      inherit nb-render;
-    }
-    // perVariantTests
-    // perVariantLints
-    // perVariantFormats;
+  flatApps = {
+    inherit
+      bench-init
+      bench-collect
+      bench-aggregate
+      bench-validate
+      ;
+    inherit test lint;
+    inherit nb-render;
+  }
+  // perVariantTests
+  // perVariantLints;
 in
-  lib.mapAttrs (_n: drv: toApp drv) flatApps
+lib.mapAttrs (_n: drv: toApp drv) flatApps

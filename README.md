@@ -133,10 +133,11 @@ See the [documentation](https://torchmatch.khws.io/) for full API reference.
 Two implementations within the primed/starred-zeros sub-family of
 the Hungarian method. `munkres` is Munkres' (1957) single-path
 augmenting-path variant; `lawler` is Lawler's (1976) tree-augmentation
-variant. Both are CUDA-only and both carry the `cudagraph_unsafe` tag,
-since host-side syncs read managed-memory flags. The JV CUDA backend
-of `jonker_dense_batch` is also a Hungarian op, documented in the JV
-section below.
+variant. Both are CUDA-only, and both raise a clear error if called
+inside CUDA graph capture, since host-side syncs read managed-memory
+flags — see [torch.compile / torch.export](#torchcompile--torchexport)
+below. The JV CUDA backend of `jonker_dense_batch` is also a Hungarian
+op, documented in the JV section below.
 
 | Op        | dtype (internal)      | Variant                                                                                                                                                   |
 | --------- | --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -165,10 +166,12 @@ rectangular `(N, M)` cost matrices in float32 or float64.
 
 ## torch.compile / torch.export
 
-Every op carries a FakeTensor kernel. The CUDA primed-zeros Hungarian
-ops (`munkres`, `hybrid`, `lawler`) carry the `cudagraph_unsafe` tag
-because of host-side syncs; the CUDA backend of `jonker_dense_batch`
-is fully capturable.
+Every op carries a FakeTensor kernel. All four CUDA-only assignment ops
+(`munkres`, `hybrid`, `lawler`, and the CUDA backend of
+`jonker_dense_batch`) do a host-side CUDA synchronization internally and
+raise a clear `RuntimeError` if called inside CUDA graph capture (e.g.
+under `torch.compile(mode="reduce-overhead")`) instead of graph-breaking
+around it — call them outside the compiled/captured region.
 
 ## Build modes
 

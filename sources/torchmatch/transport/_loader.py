@@ -12,6 +12,7 @@ from __future__ import annotations
 import functools
 import os
 import pathlib
+import sys
 import typing
 from collections.abc import Callable, Iterable
 
@@ -48,8 +49,17 @@ def load_extension_module(
     register_fakes: Callable[[], None],
 ) -> None:
     """Run the prebuilt-or-JIT decision, then register FakeTensor kernels."""
-    if not force_jit() and (path := find_prebuilt(stem)) is not None:
-        torch.ops.load_library(str(path))
+    path = None if force_jit() else find_prebuilt(stem)
+    if path is not None:
+        try:
+            torch.ops.load_library(str(path))
+        except Exception as exc:
+            print(
+                f"Warning: failed to load prebuilt {path.name} ({exc}); "
+                "falling back to JIT compilation.",
+                file=sys.stderr,
+            )
+            jit_build()
     else:
         jit_build()
     register_fakes()

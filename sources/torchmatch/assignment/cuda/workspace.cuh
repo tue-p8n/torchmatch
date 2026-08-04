@@ -20,30 +20,74 @@
 
 #pragma once
 
-#include <c10/cuda/CUDACachingAllocator.h>
+#include <torch/csrc/inductor/aoti_torch/c/shim.h>
+#include <torch/csrc/stable/tensor.h>
+#include <torch/headeronly/util/shim_utils.h>
+
 #include <cstddef>
+#include <cstdint>
 #include <functional>
 #include <memory>
 #include <mutex>
 #include <unordered_map>
 #include <utility>
+#include <vector>
 
 namespace assign_lap {
 
-// Allocate device memory through PyTorch's caching allocator. Throws
-// c10::OutOfMemoryError on failure. Routing through the CCA matters
-// when the rest of the model lives in the caching allocator's pool:
-// raw cudaMalloc would fragment the address space against PyTorch's
-// own blocks, and the result is invisible to torch.cuda.empty_cache()
-// and to the cudagraph private-pool machinery.
-inline void *cca_alloc(std::size_t bytes) {
-    return c10::cuda::CUDACachingAllocator::raw_alloc(bytes);
-}
+// Device-memory pool backing one workspace layout.
+//
+// Every block is a 1-D uint8 tensor created through the AOTI C shim,
+// whose storage comes from the same allocator ATen hands every other
+// CUDA tensor: PyTorch's CUDA caching allocator. Staying inside that
+// pool matters when the rest of the model lives there too — a raw
+// cudaMalloc would fragment the address space against PyTorch's own
+// blocks, would be invisible to torch.cuda.memory_allocated() /
+// torch.cuda.empty_cache(), and would sit outside the cudagraph
+// private-pool machinery (moot while the three solvers reject graph
+// capture outright, but it keeps the option open). The shim is stable
+// ABI, so this
+// keeps the whole extension compilable with -DTORCH_TARGET_VERSION,
+// which a direct c10::cuda::CUDACachingAllocator call would not (its
+// header hard #errors under that macro).
+//
+// Blocks are owned for the lifetime of the pool and released together:
+// the workspace layouts allocate everything up front in allocate() and
+// free everything in deallocate(), so per-pointer frees are not needed.
+// Allocations are at least 512-byte aligned (the caching allocator's
+// granularity), so any element type the solvers cast to is aligned.
+class WorkspacePool {
+  public:
+    WorkspacePool() = default;
+    WorkspacePool(const WorkspacePool &) = delete;
+    WorkspacePool &operator=(const WorkspacePool &) = delete;
 
-inline void cca_free(void *ptr) {
-    if (ptr)
-        c10::cuda::CUDACachingAllocator::raw_delete(ptr);
-}
+    // Drop any previously held blocks and target `device` for
+    // subsequent allocations.
+    void reset(int device) {
+        blocks_.clear();
+        device_ = device;
+    }
+
+    // Allocate `bytes` of device memory. Throws on failure; the pool
+    // owns the result, so callers must not free the returned pointer.
+    void *alloc(std::size_t bytes) {
+        const int64_t size = static_cast<int64_t>(bytes == 0 ? 1 : bytes);
+        const int64_t stride = 1;
+        AtenTensorHandle handle = nullptr;
+        TORCH_ERROR_CODE_CHECK(aoti_torch_empty_strided(
+            /*ndim=*/1, &size, &stride, aoti_torch_dtype_uint8(),
+            aoti_torch_device_type_cuda(), device_, &handle));
+        blocks_.emplace_back(handle);
+        return blocks_.back().data_ptr();
+    }
+
+    void release() { blocks_.clear(); }
+
+  private:
+    std::vector<torch::stable::Tensor> blocks_;
+    int device_ = 0;
+};
 
 template <typename Layout>
 class WorkspaceCache {
