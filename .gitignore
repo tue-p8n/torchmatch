@@ -146,3 +146,4 @@ dmypy.json
 /result
 /result-*
 .antigravitycli/
+.*_cache
