@@ -128,9 +128,9 @@
 
             # OCI image for running the benchmark suite via Apptainer/Docker on
             # hosts where Nix is undesirable (e.g. HPC).
-            # `nix build .#bench-image` streams a `docker load`-compatible tar to
-            # stdout; see nix/bench-image.nix and .github/workflows/bench-image.yml.
-            bench-image = import ./nix/bench-image.nix {
+            # `nix build .#benchmark-image` streams a `docker load`-compatible tar to
+            # stdout; see nix/benchmark-image.nix and .github/workflows/benchmark-image.yml.
+            benchmark-image = import ./nix/benchmark-image.nix {
               inherit pkgs;
               variant = variants.cu128;
             };

@@ -17,7 +17,7 @@ To submit your own run, see [Contributing benchmarks](/resources/benchmarks/cont
 
 ## Overview
 
-::bench-explorer
+::benchmark-explorer
 ::
 
 ## Assignment methodology
@@ -70,34 +70,34 @@ median reported). CUDA cases synchronize the stream inside the timed region.
 Median across `uniform` cost on float32. Use the machine picker above
 to restrict the dataset to one machine.
 
-::bench-chart{group="single-cpu" x="n" series="op" filter='{"dtype":"f32","dist":"uniform"}' title="single-cpu, f32, uniform"}
+::benchmark-chart{group="single-cpu" x="n" series="op" filter='{"dtype":"f32","dist":"uniform"}' title="single-cpu, f32, uniform"}
 ::
 
-::bench-table{group="single-cpu" row="n" col="op" filter='{"dtype":"f32","dist":"uniform"}' title="single-cpu, f32, uniform (median)"}
+::benchmark-table{group="single-cpu" row="n" col="op" filter='{"dtype":"f32","dist":"uniform"}' title="single-cpu, f32, uniform (median)"}
 ::
 
 ## Single-problem CUDA latency
 
-::bench-chart{group="single-cuda" x="n" series="op" filter='{"dtype":"f32","dist":"uniform"}' title="single-cuda, f32, uniform"}
+::benchmark-chart{group="single-cuda" x="n" series="op" filter='{"dtype":"f32","dist":"uniform"}' title="single-cuda, f32, uniform"}
 ::
 
-::bench-table{group="single-cuda" row="n" col="op" filter='{"dtype":"f32","dist":"uniform"}' title="single-cuda, f32, uniform (median)"}
+::benchmark-table{group="single-cuda" row="n" col="op" filter='{"dtype":"f32","dist":"uniform"}' title="single-cuda, f32, uniform (median)"}
 ::
 
 ## Batched CPU latency
 
-::bench-chart{group="batch-cpu" x="n" series="op" filter='{"b":16,"dtype":"f32","dist":"uniform"}' title="batch-cpu, B=16, f32, uniform"}
+::benchmark-chart{group="batch-cpu" x="n" series="op" filter='{"b":16,"dtype":"f32","dist":"uniform"}' title="batch-cpu, B=16, f32, uniform"}
 ::
 
-::bench-table{group="batch-cpu" row="n" col="op" filter='{"b":16,"dtype":"f32","dist":"uniform"}' title="batch-cpu, B=16, f32, uniform (median)"}
+::benchmark-table{group="batch-cpu" row="n" col="op" filter='{"b":16,"dtype":"f32","dist":"uniform"}' title="batch-cpu, B=16, f32, uniform (median)"}
 ::
 
 ## Batched CUDA latency
 
-::bench-chart{group="batch-cuda" x="n" series="b" filter='{"dtype":"f32","dist":"uniform"}' title="batch-cuda jonker_dense_batch, f32, uniform"}
+::benchmark-chart{group="batch-cuda" x="n" series="b" filter='{"dtype":"f32","dist":"uniform"}' title="batch-cuda jonker_dense_batch, f32, uniform"}
 ::
 
-::bench-table{group="batch-cuda" row="n" col="b" filter='{"dtype":"f32","dist":"uniform"}' title="batch-cuda, f32, uniform (median, B columns)"}
+::benchmark-table{group="batch-cuda" row="n" col="b" filter='{"dtype":"f32","dist":"uniform"}' title="batch-cuda, f32, uniform (median, B columns)"}
 ::
 
 ## Transport matrix-face CPU latency
@@ -105,18 +105,18 @@ to restrict the dataset to one machine.
 Median across float32, uniform cost. Compare Sinkhorn backends across
 problem sizes; `exact_emd` only appears at N ≤ 128.
 
-::bench-chart{group="transport-matrix-cpu" x="n" series="op" filter='{"dtype":"f32"}' title="transport matrix CPU, f32"}
+::benchmark-chart{group="transport-matrix-cpu" x="n" series="op" filter='{"dtype":"f32"}' title="transport matrix CPU, f32"}
 ::
 
-::bench-table{group="transport-matrix-cpu" row="n" col="op" filter='{"dtype":"f32"}' title="transport matrix CPU, f32 (median)"}
+::benchmark-table{group="transport-matrix-cpu" row="n" col="op" filter='{"dtype":"f32"}' title="transport matrix CPU, f32 (median)"}
 ::
 
 ## Transport matrix-face CUDA latency
 
-::bench-chart{group="transport-matrix-cuda" x="n" series="op" filter='{"dtype":"f32"}' title="transport matrix CUDA, f32"}
+::benchmark-chart{group="transport-matrix-cuda" x="n" series="op" filter='{"dtype":"f32"}' title="transport matrix CUDA, f32"}
 ::
 
-::bench-table{group="transport-matrix-cuda" row="n" col="op" filter='{"dtype":"f32"}' title="transport matrix CUDA, f32 (median)"}
+::benchmark-table{group="transport-matrix-cuda" row="n" col="op" filter='{"dtype":"f32"}' title="transport matrix CUDA, f32 (median)"}
 ::
 
 ## Transport samples-face CUDA latency
@@ -126,10 +126,10 @@ D = 64 (feature-space clouds). `samples_loss_debias` runs three forward
 passes; the ratio to `samples_loss` is roughly 3× for large N but
 slightly more at small N due to fixed overhead.
 
-::bench-chart{group="transport-samples-cuda" x="n" series="op" filter='{"dim":3}' title="transport samples CUDA, D=3"}
+::benchmark-chart{group="transport-samples-cuda" x="n" series="op" filter='{"dim":3}' title="transport samples CUDA, D=3"}
 ::
 
-::bench-chart{group="transport-samples-cuda" x="n" series="op" filter='{"dim":64}' title="transport samples CUDA, D=64"}
+::benchmark-chart{group="transport-samples-cuda" x="n" series="op" filter='{"dim":64}' title="transport samples CUDA, D=64"}
 ::
 
 ## Assignment caveats

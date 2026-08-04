@@ -82,7 +82,7 @@ Per-family pattern: `solve()` (unified dispatcher) and `ops` (direct
 
 Every project task is a flake app. `nix run .#<task>` runs it directly;
 `nix flake show` lists everything. The five Python-touching apps
-(`bench-init`, `bench-collect`, `test`, `lint`, `format`) default to the
+(`benchmark-init`, `benchmark-collect`, `test`, `lint`, `format`) default to the
 `cu128` venv. Per-variant suffixed forms (`test-<variant>`, etc.) pin a
 specific ABI.
 
@@ -106,10 +106,10 @@ nix run .#test -- tests/test_lap_opcheck.py     # schema/FakeTensor drift
 nix run .#test -- tests/test_transport_smoke.py  # transport load smoke
 
 # Benchmarks (timeout disabled; pytest-benchmark)
-nix run .#bench-init       # one-time: write benchmarks/results/<slug>/machine.json
-nix run .#bench-collect    # run both benchmark files, write JSON under <slug>/
-nix run .#bench-aggregate  # flatten results -> docs/site/public/{benchmarks,machines}.json
-nix run .#bench-validate   # schema/leak checks (same as PR CI)
+nix run .#benchmark-init       # one-time: write benchmarks/results/<slug>/machine.json
+nix run .#benchmark-collect    # run both benchmark files, write JSON under <slug>/
+nix run .#benchmark-aggregate  # flatten results -> docs/site/public/{benchmarks,machines}.json
+nix run .#benchmark-validate   # schema/leak checks (same as PR CI)
 
 # Build wheel
 # Default: JIT-only sdist/wheel (py3-none-any); C++ sources shipped, compiled at first import.

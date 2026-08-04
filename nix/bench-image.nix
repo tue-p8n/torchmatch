@@ -1,8 +1,8 @@
 # OCI image for running the benchmark suite on hosts where Nix itself is
 # undesirable (e.g. shared HPC login/compute nodes) via Apptainer/Singularity
-# or plain Docker/Podman instead. Built with `nix build .#bench-image`
+# or plain Docker/Podman instead. Built with `nix build .#benchmark-image`
 # (streams a `docker load`-compatible tar to stdout -- see the usage note
-# below), pushed to GHCR by .github/workflows/bench-image.yml, and pulled on
+# below), pushed to GHCR by .github/workflows/benchmark-image.yml, and pulled on
 # the target host with no Nix involved there at all.
 #
 # libcuda.so.1 (the userland NVIDIA driver) is deliberately absent from the
@@ -24,7 +24,7 @@
   # directory is present. Docker's --gpus all (NVIDIA Container Toolkit)
   # doesn't create /.singularity.d/libs and needs no such override -- it
   # puts libcuda.so.1 somewhere ldconfig-discoverable already.
-  entrypoint = pkgs.writeShellScriptBin "torchmatch-bench-entrypoint" ''
+  entrypoint = pkgs.writeShellScriptBin "torchmatch-benchmark-entrypoint" ''
     if [ -d /.singularity.d/libs ] && [ -z "''${TRITON_LIBCUDA_PATH:-}" ]; then
       export TRITON_LIBCUDA_PATH=/.singularity.d/libs
     fi
@@ -44,7 +44,7 @@ in
 
     config = {
       WorkingDir = "/app";
-      Entrypoint = ["${entrypoint}/bin/torchmatch-bench-entrypoint"];
+      Entrypoint = ["${entrypoint}/bin/torchmatch-benchmark-entrypoint"];
       # `--results-root`/`--tests-dir` both default to cwd-relative paths
       # (see sources/torchmatch/bench/__main__.py), so a plain bind-mount of
       # the host's benchmarks/results/ over /app/benchmarks/results is all a

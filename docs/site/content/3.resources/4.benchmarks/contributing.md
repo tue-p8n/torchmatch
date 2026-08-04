@@ -79,7 +79,7 @@ On a shared HPC login/compute node where installing Nix isn't practical,
 pull the prebuilt image and run it with [Apptainer](https://apptainer.org)
 instead — no Nix, no root, no daemon. The image is rebuilt from `main`
 on every push that touches the solver sources or tests (see
-`.github/workflows/bench-image.yml`), so pull again before a new run to
+`.github/workflows/benchmark-image.yml`), so pull again before a new run to
 pick up changes.
 
 `--pwd /app` is required on every invocation below: Apptainer preserves
@@ -156,7 +156,7 @@ Before pushing, double check:
   `torchmatch-<X.Y.Z>+py<X.Y>+torch<X.Y>+<variant>-<YYYYMMDDTHHMMSSZ>.json`.
 - [ ] No file outside `benchmarks/results/**` is staged.
 
-Or just run `nix run .#bench-validate` (or, without Nix, `python
+Or just run `nix run .#benchmark-validate` (or, without Nix, `python
 scripts/benchmark_validate.py benchmarks/results`) before committing —
 the same check CI runs.
 

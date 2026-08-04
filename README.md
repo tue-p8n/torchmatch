@@ -245,10 +245,10 @@ nix run .#format                  # ruff format .
                                   # On CPU-only hosts, prefer `.#test-cpu` /
                                   # `.#lint-cpu` / `.#format-cpu` to avoid
                                   # pulling the CUDA wheel closure.
-nix run .#bench-init              # one-time machine registration
-nix run .#bench-collect           # run the benchmark sweep
-nix run .#bench-aggregate         # build the static dashboard datasets
-nix run .#bench-validate          # PR-equivalent schema check
+nix run .#benchmark-init              # one-time machine registration
+nix run .#benchmark-collect           # run the benchmark sweep
+nix run .#benchmark-aggregate         # build the static dashboard datasets
+nix run .#benchmark-validate          # PR-equivalent schema check
 nix run .#docs-serve              # Nuxt dev server at 127.0.0.1:3000
 nix run .#docs-build              # static build of docs/site/
 nix run .#docs-preview            # build + serve via python -m http.server

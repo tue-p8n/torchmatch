@@ -64,23 +64,23 @@ let
     program = "${drv}/bin/${drv.meta.mainProgram or drv.pname or drv.name}";
   };
 
-  bench-init = mkVenvApp {
-    name = "bench-init";
+  benchmark-init = mkVenvApp {
+    name = "benchmark-init";
     text = ''python -m torchmatch.bench init-machine "$@"'';
   };
 
-  bench-collect = mkVenvApp {
-    name = "bench-collect";
+  benchmark-collect = mkVenvApp {
+    name = "benchmark-collect";
     text = ''python -m torchmatch.bench collect "$@"'';
   };
 
-  bench-aggregate = mkStdlibPythonApp {
-    name = "bench-aggregate";
+  benchmark-aggregate = mkStdlibPythonApp {
+    name = "benchmark-aggregate";
     text = ''python3 scripts/benchmark_aggregate.py "$@"'';
   };
 
-  bench-validate = mkStdlibPythonApp {
-    name = "bench-validate";
+  benchmark-validate = mkStdlibPythonApp {
+    name = "benchmark-validate";
     text = ''python3 scripts/benchmark_validate.py benchmarks/results "$@"'';
   };
 
@@ -121,10 +121,10 @@ let
 
   flatApps = {
     inherit
-      bench-init
-      bench-collect
-      bench-aggregate
-      bench-validate
+      benchmark-init
+      benchmark-collect
+      benchmark-aggregate
+      benchmark-validate
       ;
     inherit test lint;
     inherit nb-render;
