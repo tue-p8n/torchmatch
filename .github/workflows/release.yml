@@ -209,7 +209,7 @@ jobs:
         run: |
           apt-get update
           apt-get install -y --no-install-recommends \
-            curl ca-certificates git build-essential
+            curl ca-certificates git build-essential unzip
           # uv supplies Python 3.13 inside the Ubuntu base image without
           # adding the deadsnakes PPA.
           curl -LsSf https://astral.sh/uv/install.sh | sh
@@ -254,12 +254,23 @@ jobs:
           fi
           # shellcheck disable=SC2086
           auditwheel repair dist/torchmatch-*.whl ${EXCLUDES} -w wheelhouse/
+
+          # Extract prebuilt CUDA shared libraries, rename, and add to wheelhouse
+          unzip -o wheelhouse/torchmatch-*.whl "torchmatch/_assignment_cuda_impl*.so" -d extracted/ || true
+          unzip -o wheelhouse/torchmatch-*.whl "torchmatch/_transport_cuda_impl*.so" -d extracted/ || true
+          if [ -d extracted/torchmatch ]; then
+            mv extracted/torchmatch/_assignment_cuda_impl*.so wheelhouse/_assignment_cuda_impl.linux_x86_64.${{ matrix.variant }}.so || true
+            mv extracted/torchmatch/_transport_cuda_impl*.so wheelhouse/_transport_cuda_impl.linux_x86_64.${{ matrix.variant }}.so || true
+          fi
+
           ls wheelhouse/
 
       - uses: actions/upload-artifact@v4
         with:
           name: wheel-${{ matrix.variant }}
-          path: wheelhouse/*.whl
+          path: |
+            wheelhouse/*.whl
+            wheelhouse/*.so
           if-no-files-found: error
 
   publish-release:
@@ -285,6 +296,7 @@ jobs:
           files: |
             dist/*.whl
             dist/*.tar.gz
+            dist/*.so
           fail_on_unmatched_files: true
           generate_release_notes: true
 

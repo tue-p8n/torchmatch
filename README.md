@@ -13,15 +13,34 @@ API reference, and the full benchmark report.
 
 ## Install
 
+### Standard Installation (PyPI)
 ```bash
 pip install torchmatch
 ```
+By default, this installs the CPU stable-ABI wheel or the source distribution (`sdist`). If a CUDA device is present, `import torchmatch` will automatically JIT-compile the CUDA extensions at import-time (cached for subsequent runs).
 
-The CUDA primed-zeros Hungarian ops (`munkres`, `hybrid`, `lawler`) and
-the CUDA backend of `jonker_dense_batch` need a CUDA-capable PyTorch
-build. CPU ops run on any platform; the SIMD variants need AVX2/FMA at
-build time. The sdist falls back to an AVX2/FMA-aware JIT path, and
-`jonker_scalar` works without SIMD.
+### Pre-compiled CUDA Wheels
+To bypass JIT compilation on GPU machines, install a precompiled CUDA-variant wheel (`+cu126`, `+cu128`, `+cu130`, `+cu132`) from our PEP 503 package index:
+
+**With `pip`**:
+```bash
+pip install torchmatch --extra-index-url https://torchmatch.khws.io/simple/cu128/
+```
+
+**With `uv`** (configure in `pyproject.toml`):
+```toml
+[[tool.uv.index]]
+name = "torchmatch-cu128"
+url = "https://torchmatch.khws.io/simple/cu128/"
+explicit = true
+
+[tool.uv.sources]
+torchmatch = { index = "torchmatch-cu128" }
+```
+Or add via CLI:
+```bash
+uv add torchmatch --index torchmatch-cu128=https://torchmatch.khws.io/simple/cu128/
+```
 
 ## Usage
 

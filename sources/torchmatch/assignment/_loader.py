@@ -42,13 +42,84 @@ def find_prebuilt(stem: str) -> pathlib.Path | None:
     return None
 
 
+def find_or_download_cuda_prebuilt(stem: str) -> pathlib.Path | None:
+    """Locate a cached CUDA prebuilt .so, or try downloading it from GitHub Releases."""
+    try:
+        from torchmatch import __version__
+    except ImportError:
+        return None
+
+    if "unknown" in __version__ or "dev" in __version__:
+        return None
+
+    # Detect platform - only precompile for linux x86_64 in CI
+    import platform
+    if platform.system().lower() != "linux":
+        return None
+    if platform.machine().lower() not in ("x86_64", "amd64"):
+        return None
+
+    # Detect CUDA version
+    if not torch.cuda.is_available() or torch.version.cuda is None:
+        return None
+
+    parts = torch.version.cuda.split(".")
+    if len(parts) < 2:
+        return None
+    major, minor = parts[0], parts[1]
+    variant = f"cu{major}{minor}"
+
+    # Verify active variant is one of the built target matrices
+    if variant not in {"cu126", "cu128", "cu130", "cu132"}:
+        return None
+
+    # Cache directory: ~/.cache/torchmatch/v{version}/
+    filename = f"{stem}.linux_x86_64.{variant}.so"
+    cache_dir = pathlib.Path.home() / ".cache" / "torchmatch" / f"v{__version__}"
+    cache_path = cache_dir / filename
+
+    if cache_path.exists():
+        return cache_path
+
+    # Try to fetch from GitHub Release
+    url = f"https://github.com/tue-p8n/torchmatch/releases/download/v{__version__}/{filename}"
+    import urllib.request
+
+    try:
+        cache_dir.mkdir(parents=True, exist_ok=True)
+        temp_path = cache_path.with_suffix(".tmp")
+        req = urllib.request.Request(
+            url,
+            headers={"User-Agent": "torchmatch-downloader"}
+        )
+        with urllib.request.urlopen(req, timeout=15) as response:
+            with temp_path.open("wb") as f:
+                f.write(response.read())
+        temp_path.replace(cache_path)
+        return cache_path
+    except Exception as exc:
+        is_404 = hasattr(exc, "code") and getattr(exc, "code") == 404
+        if not is_404:
+            print(
+                f"Warning: failed to download prebuilt CUDA binary from {url} ({exc!r}); "
+                "falling back to JIT compilation.",
+                file=sys.stderr,
+            )
+        return None
+
+
 def load_extension_module(
     stem: str,
     jit_build: Callable[[], None],
     register_fakes: Callable[[], None],
 ) -> None:
     """Run the prebuilt-or-JIT decision, then register FakeTensor kernels."""
-    path = None if force_jit() else find_prebuilt(stem)
+    path = None
+    if not force_jit():
+        path = find_prebuilt(stem)
+        if path is None and "cuda" in stem:
+            path = find_or_download_cuda_prebuilt(stem)
+
     if path is not None:
         try:
             torch.ops.load_library(str(path))
