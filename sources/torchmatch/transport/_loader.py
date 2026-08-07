@@ -55,6 +55,7 @@ def find_or_download_cuda_prebuilt(stem: str) -> pathlib.Path | None:
 
     # Detect platform - only precompile for linux x86_64 in CI
     import platform
+
     if platform.system().lower() != "linux":
         return None
     if platform.machine().lower() not in ("x86_64", "amd64"):
@@ -90,8 +91,7 @@ def find_or_download_cuda_prebuilt(stem: str) -> pathlib.Path | None:
         cache_dir.mkdir(parents=True, exist_ok=True)
         temp_path = cache_path.with_suffix(".tmp")
         req = urllib.request.Request(
-            url,
-            headers={"User-Agent": "torchmatch-downloader"}
+            url, headers={"User-Agent": "torchmatch-downloader"}
         )
         with urllib.request.urlopen(req, timeout=15) as response:
             with temp_path.open("wb") as f:
@@ -99,7 +99,7 @@ def find_or_download_cuda_prebuilt(stem: str) -> pathlib.Path | None:
         temp_path.replace(cache_path)
         return cache_path
     except Exception as exc:
-        is_404 = hasattr(exc, "code") and getattr(exc, "code") == 404
+        is_404 = hasattr(exc, "code") and exc.code == 404
         if not is_404:
             print(
                 f"Warning: failed to download prebuilt CUDA binary from {url} ({exc!r}); "

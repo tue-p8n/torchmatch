@@ -9,10 +9,9 @@ propagate and crash the import.
 
 from __future__ import annotations
 
-import pytest
-
 from unittest.mock import MagicMock, patch
 
+import pytest
 from torchmatch.assignment import _loader as assignment_loader
 from torchmatch.transport import _loader as transport_loader
 
@@ -109,16 +108,20 @@ def test_find_or_download_cuda_prebuilt_skips_on_non_linux(monkeypatch, loader):
 def test_find_or_download_cuda_prebuilt_skips_on_unsupported_cuda(monkeypatch, loader):
     monkeypatch.setattr(loader, "force_jit", lambda: False)
     monkeypatch.setattr("torchmatch.__version__", "1.0.0", raising=False)
-    with patch("platform.system", return_value="Linux"), \
-         patch("platform.machine", return_value="x86_64"), \
-         patch("torch.cuda.is_available", return_value=True), \
-         patch("torch.version.cuda", "11.8"):
+    with (
+        patch("platform.system", return_value="Linux"),
+        patch("platform.machine", return_value="x86_64"),
+        patch("torch.cuda.is_available", return_value=True),
+        patch("torch.version.cuda", "11.8"),
+    ):
         res = loader.find_or_download_cuda_prebuilt("_assignment_cuda_impl")
         assert res is None
 
 
 @pytest.mark.parametrize("loader", [assignment_loader, transport_loader])
-def test_find_or_download_cuda_prebuilt_downloads_and_caches(monkeypatch, tmp_path, loader):
+def test_find_or_download_cuda_prebuilt_downloads_and_caches(
+    monkeypatch, tmp_path, loader
+):
     monkeypatch.setattr(loader, "force_jit", lambda: False)
     monkeypatch.setattr("torchmatch.__version__", "1.0.0", raising=False)
 
@@ -126,13 +129,14 @@ def test_find_or_download_cuda_prebuilt_downloads_and_caches(monkeypatch, tmp_pa
     mock_response.__enter__.return_value = mock_response
     mock_response.read.return_value = b"mock elf data"
 
-    with patch("platform.system", return_value="Linux"), \
-         patch("platform.machine", return_value="x86_64"), \
-         patch("torch.cuda.is_available", return_value=True), \
-         patch("torch.version.cuda", "12.8"), \
-         patch("pathlib.Path.home", return_value=tmp_path), \
-         patch("urllib.request.urlopen", return_value=mock_response) as mock_urlopen:
-
+    with (
+        patch("platform.system", return_value="Linux"),
+        patch("platform.machine", return_value="x86_64"),
+        patch("torch.cuda.is_available", return_value=True),
+        patch("torch.version.cuda", "12.8"),
+        patch("pathlib.Path.home", return_value=tmp_path),
+        patch("urllib.request.urlopen", return_value=mock_response) as mock_urlopen,
+    ):
         res = loader.find_or_download_cuda_prebuilt("_assignment_cuda_impl")
 
         # Verify it downloaded the correct URL

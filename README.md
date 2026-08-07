@@ -14,20 +14,25 @@ API reference, and the full benchmark report.
 ## Install
 
 ### Standard Installation (PyPI)
+
 ```bash
 pip install torchmatch
 ```
+
 By default, this installs the CPU stable-ABI wheel or the source distribution (`sdist`). If a CUDA device is present, `import torchmatch` will automatically JIT-compile the CUDA extensions at import-time (cached for subsequent runs).
 
 ### Pre-compiled CUDA Wheels
+
 To bypass JIT compilation on GPU machines, install a precompiled CUDA-variant wheel (`+cu126`, `+cu128`, `+cu130`, `+cu132`) from our PEP 503 package index:
 
 **With `pip`**:
+
 ```bash
 pip install torchmatch --extra-index-url https://torchmatch.khws.io/simple/cu128/
 ```
 
 **With `uv`** (configure in `pyproject.toml`):
+
 ```toml
 [[tool.uv.index]]
 name = "torchmatch-cu128"
@@ -37,7 +42,9 @@ explicit = true
 [tool.uv.sources]
 torchmatch = { index = "torchmatch-cu128" }
 ```
+
 Or add via CLI:
+
 ```bash
 uv add torchmatch --index torchmatch-cu128=https://torchmatch.khws.io/simple/cu128/
 ```

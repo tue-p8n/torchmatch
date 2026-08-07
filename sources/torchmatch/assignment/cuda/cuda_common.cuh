@@ -206,7 +206,8 @@ __global__ void k_scan_sentinel_stats(const scalar_t *__restrict__ data, int64_t
 // cpu/ops_stable.cpp, computed here via a device-side scan kernel
 // instead of a host loop.
 template <typename scalar_t>
-inline scalar_t compute_inf_sentinel(const torch::stable::Tensor &cost, cudaStream_t stream) {
+inline scalar_t compute_inf_sentinel(const torch::stable::Tensor &cost,
+                                     cudaStream_t stream) {
     const int64_t n = cost.numel();
     const int64_t rows = cost.size(cost.dim() - 2);
     const int64_t cols = cost.size(cost.dim() - 1);
@@ -234,8 +235,9 @@ inline scalar_t compute_inf_sentinel(const torch::stable::Tensor &cost, cudaStre
         cudaMemcpyAsync(&h, d_stats.get(), sizeof(h), cudaMemcpyDeviceToHost, stream));
     CUDA_RUNTIME(cudaStreamSynchronize(stream));
 
-    STD_TORCH_CHECK(!h.has_nan, "cost matrix contains NaN; use +inf for forbidden pairs, "
-                                "NaN signals an upstream bug");
+    STD_TORCH_CHECK(!h.has_nan,
+                    "cost matrix contains NaN; use +inf for forbidden pairs, "
+                    "NaN signals an upstream bug");
     STD_TORCH_CHECK(!h.has_neg_inf,
                     "cost matrix contains -inf; -inf has no forbidden-edge meaning");
 
@@ -259,9 +261,9 @@ __global__ void k_rewrite_pos_inf(scalar_t *data, int64_t n, scalar_t sentinel) 
 // is never mutated in place). NaN and -inf are already rejected upstream
 // by compute_inf_sentinel; only +inf cells survive into this call.
 template <typename scalar_t>
-inline torch::stable::Tensor
-rewrite_inf_to_sentinel(const torch::stable::Tensor &cost, scalar_t sentinel,
-                        cudaStream_t stream) {
+inline torch::stable::Tensor rewrite_inf_to_sentinel(const torch::stable::Tensor &cost,
+                                                     scalar_t sentinel,
+                                                     cudaStream_t stream) {
     torch::stable::Tensor out = torch::stable::clone(cost);
     const int64_t n = out.numel();
     if (n > 0) {
@@ -279,8 +281,9 @@ rewrite_inf_to_sentinel(const torch::stable::Tensor &cost, scalar_t sentinel,
 // -1, the standard "unmatched row" marker. Fills a CPU stable::Tensor on
 // the host (matching the CPU-fill-then-transfer shape of the pre-stable
 // version) and moves it to `device` via torch::stable::to.
-inline torch::stable::Tensor repack_row_to_col(const int *h_col_assignment, int64_t rows,
-                                               int64_t cols, torch::stable::Device device) {
+inline torch::stable::Tensor repack_row_to_col(const int *h_col_assignment,
+                                               int64_t rows, int64_t cols,
+                                               torch::stable::Device device) {
     torch::stable::Tensor row_to_col =
         torch::stable::empty({rows}, torch::headeronly::ScalarType::Long);
     int64_t *out = row_to_col.mutable_data_ptr<int64_t>();
