@@ -207,8 +207,8 @@ struct HybridWorkspace {
         h_col_ass = new int[N];
 
         // Size CUB storage for the largest of the four reductions/scans.
-        cub::DeviceReduce::Reduce(nullptr, b1, min_vect, min_mat, (int)nbr, cub::Min(),
-                                  (data)1.0);
+        cub::DeviceReduce::Reduce(nullptr, b1, min_vect, min_mat, (int)nbr,
+                                  assign_lap::Min(), (data)1.0);
         cub::DeviceReduce::Sum(nullptr, b2, zeros_size_b, (size_t *)zeros_size_b,
                                (int)nb4);
         cub::DeviceReduce::Sum(nullptr, b3, vertex_predicates_a, (long *)nullptr,
@@ -251,7 +251,7 @@ __global__ void row_reduce(double *row_min, data *slack) {
     __syncthreads();
     using BR = cub::BlockReduce<data, BLOCK_DIMX>;
     __shared__ typename BR::TempStorage temp_storage;
-    thread_min = BR(temp_storage).Reduce(thread_min, cub::Min());
+    thread_min = BR(temp_storage).Reduce(thread_min, assign_lap::Min());
     if (threadIdx.x == 0)
         row_min[blockIdx.x] = (double)thread_min;
     __syncthreads();
@@ -269,7 +269,7 @@ __global__ void col_min(const data *slack, double *col_min) {
     __syncthreads();
     using BR = cub::BlockReduce<data, BLOCK_DIMX>;
     __shared__ typename BR::TempStorage temp_storage;
-    thread_min = BR(temp_storage).Reduce(thread_min, cub::Min());
+    thread_min = BR(temp_storage).Reduce(thread_min, assign_lap::Min());
     if (threadIdx.x == 0)
         col_min[blockIdx.x] = (double)thread_min;
 }
@@ -472,7 +472,7 @@ __global__ void min_reduce_kernel1(volatile data *g_idata, volatile data *g_odat
     __syncthreads();
     using BlockReduce = cub::BlockReduce<data, blockSize>;
     __shared__ typename BlockReduce::TempStorage temp_storage;
-    data minimum = BlockReduce(temp_storage).Reduce(sdata[tid], cub::Min());
+    data minimum = BlockReduce(temp_storage).Reduce(sdata[tid], assign_lap::Min());
     if (tid == 0)
         g_odata[blockIdx.x] = minimum;
 }
@@ -904,7 +904,7 @@ class HLAP {
                min_vect, row_cover, col_cover);
         SYNC();
         CUDA_RUNTIME(cub::DeviceReduce::Reduce(cub_storage, b1, min_vect, min_mat, nbr,
-                                               cub::Min(),
+                                               assign_lap::Min(),
                                                assign_lap::cost_inf<data>()));
         SYNC();
         data temp;

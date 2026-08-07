@@ -912,7 +912,7 @@ __global__ void kernel_compute_theta(const double *d_col_slacks,
                 thread_min = s;
         }
     }
-    double block_min = BR(temp_storage).Reduce(thread_min, cub::Min());
+    double block_min = BR(temp_storage).Reduce(thread_min, assign_lap::Min());
     if (threadIdx.x == 0) {
         *d_theta = block_min / 2.0;
     }

@@ -34,6 +34,13 @@
 
 namespace assign_lap {
 
+struct Min {
+    template <typename T>
+    __host__ __device__ __forceinline__ T operator()(const T &a, const T &b) const {
+        return (b < a) ? b : a;
+    }
+};
+
 inline void gpu_assert_throw(cudaError_t code, const char *file, int line) {
     if (code == cudaSuccess)
         return;

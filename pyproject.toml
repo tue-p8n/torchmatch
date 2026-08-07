@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "torchmatch"
 description = "Assignment and transport solvers for PyTorch."
 readme = "README.md"
-version = "1.0.2"
+version = "1.0.3"
 requires-python = ">=3.13"
 keywords = [
   "pytorch",

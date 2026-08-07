@@ -138,7 +138,7 @@ struct MunkresWorkspace {
         size_t bytes_min = 0, bytes_sum = 0;
         cub::DeviceReduce::Reduce(nullptr, bytes_min, state.d_min_in_mat_vect,
                                   &state.cb->min_in_mat, (int)num_blocks_reduction,
-                                  cub::Min(), assign_lap::cost_inf<data>());
+                                  assign_lap::Min(), assign_lap::cost_inf<data>());
         cub::DeviceReduce::Sum(nullptr, bytes_sum, state.zeros_size_b,
                                &state.cb->zeros_size, (int)num_blocks_4);
         state.cub_temp_bytes = std::max(bytes_min, bytes_sum);
@@ -184,7 +184,7 @@ __global__ void k_calc_col_min(MunkresState<data> s) {
     __syncthreads();
     using BR = cub::BlockReduce<data, kThreadsReduction>;
     __shared__ typename BR::TempStorage temp_storage;
-    thread_min = BR(temp_storage).Reduce(thread_min, cub::Min());
+    thread_min = BR(temp_storage).Reduce(thread_min, assign_lap::Min());
     if (threadIdx.x == 0)
         s.min_in_rows[blockIdx.x] = thread_min;
 }
@@ -206,7 +206,7 @@ __global__ void k_calc_row_min(MunkresState<data> s) {
     }
     using BR = cub::BlockReduce<data, kThreadsReduction>;
     __shared__ typename BR::TempStorage temp_storage;
-    thread_min = BR(temp_storage).Reduce(thread_min, cub::Min());
+    thread_min = BR(temp_storage).Reduce(thread_min, assign_lap::Min());
     if (threadIdx.x == 0)
         s.min_in_cols[blockIdx.x] = thread_min;
 }
@@ -410,7 +410,7 @@ __global__ void k_min_reduce_uncovered(volatile data *g_idata, volatile data *g_
     __syncthreads();
     using BR = cub::BlockReduce<data, blockSize>;
     __shared__ typename BR::TempStorage temp_storage;
-    data minimum = BR(temp_storage).Reduce(sdata[tid], cub::Min());
+    data minimum = BR(temp_storage).Reduce(sdata[tid], assign_lap::Min());
     if (tid == 0)
         g_odata[blockIdx.x] = minimum;
 }
@@ -531,8 +531,8 @@ static void solve_with_workspace(MunkresWorkspace<data> &ws, cudaStream_t stream
             size_t tb = s.cub_temp_bytes;
             CUDA_RUNTIME(cub::DeviceReduce::Reduce(
                 s.cub_temp, tb, s.d_min_in_mat_vect, &cb->min_in_mat,
-                (int)num_blocks_reduction, cub::Min(), assign_lap::cost_inf<data>(),
-                stream));
+                (int)num_blocks_reduction, assign_lap::Min(),
+                assign_lap::cost_inf<data>(), stream));
             CUDA_RUNTIME(cudaStreamSynchronize(stream));
 
             if (cb->min_in_mat <= 0)
