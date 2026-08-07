@@ -209,7 +209,7 @@ jobs:
         run: |
           apt-get update
           apt-get install -y --no-install-recommends \
-            curl ca-certificates git build-essential unzip
+            curl ca-certificates git build-essential unzip patchelf
           # uv supplies Python 3.13 inside the Ubuntu base image without
           # adding the deadsnakes PPA.
           curl -LsSf https://astral.sh/uv/install.sh | sh
