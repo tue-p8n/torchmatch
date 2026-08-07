@@ -3336,7 +3336,7 @@ wheels = [
 
 [[package]]
 name = "torchmatch"
-version = "1.0.1"
+version = "1.0.2"
 source = { editable = "." }
 dependencies = [
     { name = "torch", version = "2.11.0+cu128", source = { registry = "https://download.pytorch.org/whl/cu128" }, marker = "extra == 'extra-10-torchmatch-cu128' or (extra == 'extra-10-torchmatch-cpu' and extra == 'extra-10-torchmatch-cu126') or (extra == 'extra-10-torchmatch-cu126' and extra == 'extra-10-torchmatch-cu130') or (extra == 'extra-10-torchmatch-cu126' and extra == 'extra-10-torchmatch-cu132') or (extra == 'extra-10-torchmatch-cu130' and extra == 'extra-10-torchmatch-cu132') or (extra == 'extra-10-torchmatch-cpu' and extra != 'extra-10-torchmatch-cu128' and extra == 'extra-10-torchmatch-cu130') or (extra == 'extra-10-torchmatch-cpu' and extra != 'extra-10-torchmatch-cu128' and extra == 'extra-10-torchmatch-cu132')" },
