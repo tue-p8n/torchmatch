@@ -109,6 +109,7 @@ jobs:
           uv build --out-dir dist/
 
           mkdir -p wheelhouse
+          mv dist/*.tar.gz wheelhouse/
           # shellcheck disable=SC2086
           auditwheel repair dist/torchmatch-*.whl ${AUDITWHEEL_EXCLUDE_COMMON} -w wheelhouse/
           ls wheelhouse/
@@ -124,9 +125,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: wheel-pypi
-          path: |
-            wheelhouse/*.whl
-            dist/*.tar.gz
+          path: wheelhouse/*
           if-no-files-found: error
 
   build-cpu-wheel:
