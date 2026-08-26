@@ -263,6 +263,38 @@
         "type": "github"
       }
     },
+    "nixpkgs-23-11": {
+      "locked": {
+        "lastModified": 1720535198,
+        "narHash": "sha256-zwVvxrdIzralnSbcpghA92tWu2DV2lwv89xZc8MTrbg=",
+        "owner": "NixOS",
+        "repo": "nixpkgs",
+        "rev": "205fd4226592cc83fd4c0885a3e4c9c400efabb5",
+        "type": "github"
+      },
+      "original": {
+        "owner": "NixOS",
+        "ref": "nixos-23.11",
+        "repo": "nixpkgs",
+        "type": "github"
+      }
+    },
+    "nixpkgs-24-05": {
+      "locked": {
+        "lastModified": 1735563628,
+        "narHash": "sha256-OnSAY7XDSx7CtDoqNh8jwVwh4xNL/2HaJxGjryLWzX8=",
+        "owner": "NixOS",
+        "repo": "nixpkgs",
+        "rev": "b134951a4c9f3c995fd7be05f3243f8ecd65d798",
+        "type": "github"
+      },
+      "original": {
+        "owner": "NixOS",
+        "ref": "nixos-24.05",
+        "repo": "nixpkgs",
+        "type": "github"
+      }
+    },
     "nixpkgs-lib": {
       "locked": {
         "lastModified": 1777168982,
@@ -460,17 +492,19 @@
         "git-hooks": "git-hooks_2",
         "nix-gl-host": "nix-gl-host",
         "nixpkgs": "nixpkgs",
+        "nixpkgs-23-11": "nixpkgs-23-11",
+        "nixpkgs-24-05": "nixpkgs-24-05",
         "pyproject-build-systems": "pyproject-build-systems",
         "pyproject-nix": "pyproject-nix",
         "treefmt": "treefmt_2",
         "uv2nix": "uv2nix"
       },
       "locked": {
-        "lastModified": 1785491213,
-        "narHash": "sha256-0czvFWDAB4CI8opZXB0mj0WN3YpnNrXY+h6nIJ3eEgE=",
+        "lastModified": 1787736171,
+        "narHash": "sha256-KeISNmCdn754RqNf9uw+fKTZCUkPDweZiMI8GHBiDgE=",
         "owner": "tue-p8n",
         "repo": "nix",
-        "rev": "918f45f824fec7b5d0bb2c1945292ac97972142f",
+        "rev": "5cf451eb2eca6581eb184a3c51c19a979a96cdc1",
         "type": "github"
       },
       "original": {
