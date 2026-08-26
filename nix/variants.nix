@@ -11,69 +11,70 @@
   lib,
   tue-p8n,
   workspaceRoot,
-}: let
-  mkVariant = {
-    name,
-    accelerator,
-  }: let
-    # Resolve target accelerator hardware environment
-    env = tue-p8n.lib.resolve {
-      inherit pkgs;
-      inherit accelerator;
-    };
+}:
+let
+  p8n = tue-p8n.lib pkgs;
+  pyproject = p8n.uv.readProject workspaceRoot;
 
-    stdenv' =
-      if lib.hasPrefix "cuda12" accelerator
-      then pkgs.gcc13Stdenv
-      else env.config.stdenv;
+  mkVariant =
+    {
+      accelerator,
+      ...
+    }:
+    let
+      accelConfig = p8n.config.build pkgs accelerator;
+      stdenv' =
+        if lib.hasPrefix "cuda12" accelerator then
+          pkgs.gcc13Stdenv
+        else
+          accelConfig.stdenv;
 
-    # Build project via tue-p8n's centralized uv2nix builder
-    project = env.uv.mkProject {
-      inherit name workspaceRoot;
-
-      # torchmatch owns its C++ extensions; configure the build environment
-      overrides = _final: prev: {
+      extraOverlay = _final: prev: {
         torchmatch = prev.torchmatch.overrideAttrs (old: {
           stdenv = stdenv';
           nativeBuildInputs =
-            (old.nativeBuildInputs or [])
-            ++ lib.optionals (env.config.tag != "cpu") [
+            (old.nativeBuildInputs or [ ])
+            ++ lib.optionals (accelConfig.acceleration != "none") [
               stdenv'.cc
-              env.config.pkgs.cudaPackages.cudatoolkit
+              accelConfig.pkgs.cudaPackages.cudatoolkit
             ];
           env =
-            (old.env or {})
+            (old.env or { })
             // (
-              if env.config.tag == "cpu"
-              then {
-                TORCHMATCH_BUILD_CPU = "1";
-                TORCHMATCH_BUILD_TRANSPORT = "1";
-              }
-              else {
-                TORCHMATCH_BUILD_CPU = "1";
-                TORCHMATCH_BUILD_CUDA = "1";
-                TORCHMATCH_BUILD_TRANSPORT = "1";
-                CUDA_HOME = "${env.config.pkgs.cudaPackages.cudatoolkit}";
-                CUDA_PATH = "${env.config.pkgs.cudaPackages.cudatoolkit}";
-                TORCH_CUDA_ARCH_LIST = "8.0;8.6;8.9;9.0";
-                CC = "${stdenv'.cc}/bin/gcc";
-                CXX = "${stdenv'.cc}/bin/g++";
-              }
+              if accelConfig.acceleration == "none" then
+                {
+                  TORCHMATCH_BUILD_CPU = "1";
+                  TORCHMATCH_BUILD_TRANSPORT = "1";
+                }
+              else
+                {
+                  TORCHMATCH_BUILD_CPU = "1";
+                  TORCHMATCH_BUILD_CUDA = "1";
+                  TORCHMATCH_BUILD_TRANSPORT = "1";
+                  CUDA_HOME = "${accelConfig.pkgs.cudaPackages.cudatoolkit}";
+                  CUDA_PATH = "${accelConfig.pkgs.cudaPackages.cudatoolkit}";
+                  TORCH_CUDA_ARCH_LIST = "8.0;8.6;8.9;9.0";
+                  CC = "${stdenv'.cc}/bin/gcc";
+                  CXX = "${stdenv'.cc}/bin/g++";
+                }
             );
         });
       };
+
+      venv = pyproject.mkVenv {
+        inherit accelerator;
+        overlays = [ extraOverlay ];
+      };
+    in
+    {
+      pythonSet = venv.pythonSet;
+      inherit venv;
+      package = venv.pythonSet.torchmatch;
+      cudaPkgs = if accelerator == "cpu" then null else accelConfig.pkgs.cudaPackages;
+      hostStdenv = stdenv';
     };
-  in {
-    pythonSet = project.pythonSet;
-    venv = project.venv;
-    package = project.pythonSet.torchmatch;
-    cudaPkgs =
-      if accelerator == "cpu"
-      then null
-      else env.config.pkgs.cudaPackages;
-    hostStdenv = stdenv';
-  };
-in {
+in
+{
   cpu = mkVariant {
     name = "torchmatch";
     accelerator = "cpu";

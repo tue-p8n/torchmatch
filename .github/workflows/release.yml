@@ -146,7 +146,7 @@ jobs:
           uv venv --python 3.13 .venv
           . .venv/bin/activate
           uv pip install --extra-index-url https://download.pytorch.org/whl/cpu 'torch>=2.11'
-          uv pip install 'setuptools>=77' wheel auditwheel
+          uv pip install 'setuptools>=77' wheel auditwheel patchelf
 
       - name: Inject local version (+cpu)
         run: sed -i 's/^version = "\(.*\)"$/version = "\1+cpu"/' pyproject.toml
@@ -208,12 +208,14 @@ jobs:
         run: |
           apt-get update
           apt-get install -y --no-install-recommends \
-            curl ca-certificates git build-essential unzip patchelf
+            curl ca-certificates git build-essential unzip
+          curl -sSL https://github.com/NixOS/patchelf/releases/download/0.18.0/patchelf-0.18.0-x86_64.tar.gz | tar -xz -C /usr/local/bin --strip-components=1 ./bin/patchelf
           # uv supplies Python 3.13 inside the Ubuntu base image without
           # adding the deadsnakes PPA.
           curl -LsSf https://astral.sh/uv/install.sh | sh
           . "$HOME/.local/bin/env"
           uv --version
+          patchelf --version
 
       - uses: actions/checkout@v4
         with:
@@ -227,7 +229,7 @@ jobs:
           uv pip install \
             --extra-index-url 'https://download.pytorch.org/whl/${{ matrix.torch_index }}' \
             '${{ matrix.torch_spec }}'
-          uv pip install 'setuptools>=77' wheel auditwheel
+          uv pip install 'setuptools>=77' wheel auditwheel patchelf
 
       - name: Inject local version (+${{ matrix.variant }})
         run: sed -i 's/^version = "\(.*\)"$/version = "\1+${{ matrix.variant }}"/' pyproject.toml

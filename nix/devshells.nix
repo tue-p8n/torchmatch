@@ -12,20 +12,19 @@
   docyardCore,
   docyardThemePath,
   defaultVariantName ? "cu128",
-}: let
-  mkShellFor = {
-    name,
-    variant,
-    accelerator,
-  }: let
-    # Resolve target accelerator hardware environment
-    env = tue-p8n.lib.resolve {
-      inherit pkgs;
-      inherit accelerator;
-    };
-  in
-    env.uv.mkShell {
+}:
+let
+  p8n = tue-p8n.lib pkgs;
+
+  mkShellFor =
+    {
+      name,
+      variant,
+      accelerator,
+    }:
+    p8n.uv.mkShell {
       name = "torchmatch-${name}";
+      inherit accelerator;
       packages = [
         variant.venv
         docyardCore
@@ -77,4 +76,4 @@
     };
   };
 in
-  shells // {default = shells.${defaultVariantName};}
+shells // { default = shells.${defaultVariantName}; }
