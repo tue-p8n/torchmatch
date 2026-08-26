@@ -209,13 +209,11 @@ jobs:
           apt-get update
           apt-get install -y --no-install-recommends \
             curl ca-certificates git build-essential unzip
-          curl -sSL https://github.com/NixOS/patchelf/releases/download/0.18.0/patchelf-0.18.0-x86_64.tar.gz | tar -xz -C /usr/local/bin --strip-components=1 ./bin/patchelf
           # uv supplies Python 3.13 inside the Ubuntu base image without
           # adding the deadsnakes PPA.
           curl -LsSf https://astral.sh/uv/install.sh | sh
           . "$HOME/.local/bin/env"
           uv --version
-          patchelf --version
 
       - uses: actions/checkout@v4
         with:
