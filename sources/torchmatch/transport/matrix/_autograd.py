@@ -5,17 +5,19 @@ Autograd registration for the cost-matrix Sinkhorn ops.
 ``torch.library.custom_op`` registrations, which are opaque to autograd
 until a formula is registered. Without one they still build a graph node
 whose output reports ``requires_grad=True``, and the failure only surfaces
-at backward, as "no autograd formula was registered". That is why
-:mod:`._solve` calls the Python iteration functions directly.
+at backward, as "no autograd formula was registered".
 
 The formula here is the derivative of the iteration as written, obtained
-by replaying it. ``setup_context`` saves the inputs; ``backward`` re-runs
-the same solver under ``enable_grad`` on detached copies and takes the
+by replaying it. ``setup_context`` saves the tensor inputs; ``backward``
+re-runs the same solver under ``enable_grad`` and takes the
 vector-Jacobian product through the replay. This is gradient checkpointing
 of the Sinkhorn loop: identical by construction to differentiating the
 unrolled iteration, which is the semantics ``solve()`` already has and its
-gradcheck tests already pin, while storing one cost matrix instead of the
-intermediates of every iteration.
+gradcheck tests already pin, while storing the inputs instead of the
+intermediates of every iteration. Inputs that need a gradient enter the
+replay as the caller's own tensors rather than detached copies, so a
+gradient taken with ``create_graph`` stays connected to them and
+second-order use (gradient penalties, Hessian-vector products) works.
 
 The alternative is implicit differentiation of the Sinkhorn fixed point,
 which the samples face uses. It is not interchangeable here. It returns
@@ -27,210 +29,125 @@ not compute would make gradcheck fail at small ``n_iter``, correctly.
 Replaying costs one extra forward per backward. The saved memory is the
 whole iteration history, which at the iteration counts these solvers run
 at is the larger quantity.
+
+Argument names, positions and which inputs are tensors all come from the
+op schema, so one registration serves every op, and each op module
+attaches its own formula right after defining the op. Every tensor input
+is differentiable, including the self-cost matrices of the divergence: in
+the debiased setting they are functions of the same predictions as the
+cost, and their gradient is exactly what debiasing contributes.
+
+The eps schedule the replayed solver rebuilds (:func:`_schedule.build_eps_schedule`)
+is itself a tensor expression with no host read, so a scaled call is
+compile-traceable exactly like ``scaling=None``.
+
+``sinkhorn_divergence`` does not use this generic replay: its own module
+registers a formula that replays only the ab / aa / bb sub-solve each
+wanted input actually touches, since the three are independent OT
+problems tied together only by the marginals. See its docstring.
+
+``exact_emd`` gets no formula: its output is piecewise constant in the
+cost, so replaying it yields no gradient rather than a wrong one.
 """
 
 from __future__ import annotations
 
-from collections.abc import Callable, Sequence
+from collections.abc import Callable
 from typing import Any
 
 import torch
 
-from torchmatch.transport.matrix._log_sinkhorn import log_sinkhorn_plan
-from torchmatch.transport.matrix._sinkhorn_divergence import sinkhorn_divergence
-from torchmatch.transport.matrix._unbalanced_sinkhorn import (
-    unbalanced_sinkhorn_plan,
-)
 from torchmatch.transport.matrix._validate import fuse_mask_into_cost
 
-__all__ = ["register_matrix_autograd"]
-
-# Positions of (cost, a, b) in each op's argument tuple. They are the only
-# floating-point inputs; eps, n_iter, rho, scaling are Python scalars and
-# mask is boolean, none of which take a gradient.
-_DIFFERENTIABLE: dict[str, tuple[int, int, int]] = {
-    "log_sinkhorn": (0, 3, 4),
-    "unbalanced_sinkhorn": (0, 4, 5),
-    "sinkhorn_divergence": (0, 3, 4),
-}
+__all__ = ["register_replay_autograd", "schema_layout"]
 
 
-def _replay_vjp(
-    replay: Callable[[torch.Tensor, torch.Tensor, torch.Tensor], torch.Tensor],
-    saved: Sequence[torch.Tensor],
-    needs_grad: Sequence[bool],
-    grad_output: torch.Tensor,
-) -> tuple[torch.Tensor | None, ...]:
+def _is_tensor_arg(arg_type: Any) -> bool:
+    if isinstance(arg_type, torch.OptionalType):
+        arg_type = arg_type.getElementType()
+    return isinstance(arg_type, torch.TensorType)
+
+
+def schema_layout(op_name: str) -> tuple[list[str], list[int]]:
     """
-    Re-run ``replay`` on detached copies and take its vector-Jacobian product.
+    Return ``(argument names, tensor-argument positions)`` for an op's schema.
 
-    ``saved`` is ``(cost, a, b)`` as the forward received them and
-    ``needs_grad`` is the matching slice of ``ctx.needs_input_grad``. Only
-    the inputs that need one are attached, so an unused marginal costs no
-    backward work. Returns gradients positionally for ``(cost, a, b)``,
-    with ``None`` wherever one was not requested.
+    Shared by :func:`register_replay_autograd` and any op module that
+    registers its own specialized formula (e.g. ``sinkhorn_divergence``),
+    so argument names and positions come from one place instead of a
+    hand-maintained table per registration.
     """
-    with torch.enable_grad():
-        attached = [
-            tensor.detach().requires_grad_(requires_grad=want)
-            for tensor, want in zip(saved, needs_grad, strict=True)
-        ]
-        output = replay(*attached)
-
-    wanted = [tensor for tensor, want in zip(attached, needs_grad, strict=True) if want]
-    if not wanted:
-        return (None, None, None)
-
-    # allow_unused: a marginal is genuinely absent from the graph for an
-    # empty batch, where the solver returns early without reading it.
-    grads = torch.autograd.grad(
-        output,
-        wanted,
-        grad_output,
-        allow_unused=True,
-    )
-    supplied = iter(grads)
-    return tuple(next(supplied) if want else None for want in needs_grad)
+    schema = getattr(torch.ops.transport, op_name).default._schema
+    names = [arg.name for arg in schema.arguments]
+    tensor_positions = [
+        i for i, arg in enumerate(schema.arguments) if _is_tensor_arg(arg.type)
+    ]
+    return names, tensor_positions
 
 
-def _expand(
-    grads: tuple[torch.Tensor | None, ...],
-    positions: tuple[int, int, int],
-    arity: int,
-) -> tuple[torch.Tensor | None, ...]:
-    """Scatter the (cost, a, b) gradients into a full-arity result tuple."""
-    out: list[torch.Tensor | None] = [None] * arity
-    for grad, position in zip(grads, positions, strict=True):
-        out[position] = grad
-    return tuple(out)
+def register_replay_autograd(op_name: str, solver: Callable[..., torch.Tensor]) -> None:
+    """
+    Attach the replay formula to ``torch.ops.transport.<op_name>``.
 
-
-def _register_log_sinkhorn() -> None:
-    positions = _DIFFERENTIABLE["log_sinkhorn"]
+    ``solver`` is the op's Python iteration function. The replay calls it
+    with the op's own arguments rebuilt by name from the schema, after
+    fusing ``mask`` into ``cost`` the way the op body does.
+    """
+    names, tensor_positions = schema_layout(op_name)
 
     def setup_context(ctx: Any, inputs: tuple, output: torch.Tensor) -> None:
         del output
-        cost, eps, n_iter, a, b, mask, scaling = inputs
-        ctx.save_for_backward(cost, a, b)
-        ctx.mask, ctx.eps, ctx.n_iter, ctx.scaling = mask, eps, n_iter, scaling
+        # save_for_backward accepts None, so the optional tensors go through
+        # it too and get the in-place-modification check like the rest.
+        ctx.save_for_backward(*(inputs[i] for i in tensor_positions))
+        ctx.scalars = {
+            names[i]: value
+            for i, value in enumerate(inputs)
+            if i not in tensor_positions
+        }
 
     def backward(ctx: Any, grad_output: torch.Tensor) -> tuple:
-        def replay(
-            cost: torch.Tensor, a: torch.Tensor, b: torch.Tensor
-        ) -> torch.Tensor:
-            return log_sinkhorn_plan(
-                fuse_mask_into_cost(cost, ctx.mask),
-                eps=ctx.eps,
-                n_iter=ctx.n_iter,
-                a=a,
-                b=b,
-                scaling=ctx.scaling,
-            )
+        # needs_input_grad follows the argument list as the dispatcher passed
+        # it, which drops trailing defaults, so it can be shorter than the
+        # schema; anything past its end was a default and takes no gradient.
+        needs = ctx.needs_input_grad
+        grads: list[torch.Tensor | None] = [None] * len(names)
+        tensors: dict[str, torch.Tensor | None] = {}
+        wanted: list[tuple[int, torch.Tensor]] = []
+        for i, saved in zip(tensor_positions, ctx.saved_tensors, strict=True):
+            if saved is None:
+                pass
+            elif i < len(needs) and needs[i] and saved.requires_grad:
+                # The caller's tensor, not a detached copy: a gradient taken
+                # with create_graph then stays connected to it.
+                wanted.append((i, saved))
+            else:
+                saved = saved.detach()
+            tensors[names[i]] = saved
+        if not wanted:
+            return tuple(grads)
 
-        grads = _replay_vjp(
-            replay,
-            ctx.saved_tensors,
-            [ctx.needs_input_grad[i] for i in positions],
+        with torch.enable_grad():
+            cost = fuse_mask_into_cost(tensors.pop("cost"), tensors.pop("mask", None))
+            output = solver(cost, **tensors, **ctx.scalars)
+
+        # An empty batch returns early without touching any input, so the
+        # replay output carries no graph and every gradient is None.
+        if not output.requires_grad:
+            return tuple(grads)
+        # allow_unused covers a wanted input the solver never reads, which
+        # autograd would otherwise report as an error rather than a zero.
+        found = torch.autograd.grad(
+            output,
+            [tensor for _, tensor in wanted],
             grad_output,
+            allow_unused=True,
+            create_graph=torch.is_grad_enabled(),
         )
-        return _expand(grads, positions, arity=7)
+        for (i, _), grad in zip(wanted, found, strict=True):
+            grads[i] = grad
+        return tuple(grads)
 
     torch.library.register_autograd(
-        "transport::log_sinkhorn",
-        backward,
-        setup_context=setup_context,
+        f"transport::{op_name}", backward, setup_context=setup_context
     )
-
-
-def _register_unbalanced_sinkhorn() -> None:
-    positions = _DIFFERENTIABLE["unbalanced_sinkhorn"]
-
-    def setup_context(ctx: Any, inputs: tuple, output: torch.Tensor) -> None:
-        del output
-        cost, eps, n_iter, rho, a, b, mask, scaling = inputs
-        ctx.save_for_backward(cost, a, b)
-        ctx.mask, ctx.eps, ctx.n_iter = mask, eps, n_iter
-        ctx.rho, ctx.scaling = rho, scaling
-
-    def backward(ctx: Any, grad_output: torch.Tensor) -> tuple:
-        def replay(
-            cost: torch.Tensor, a: torch.Tensor, b: torch.Tensor
-        ) -> torch.Tensor:
-            return unbalanced_sinkhorn_plan(
-                fuse_mask_into_cost(cost, ctx.mask),
-                eps=ctx.eps,
-                n_iter=ctx.n_iter,
-                rho=ctx.rho,
-                a=a,
-                b=b,
-                scaling=ctx.scaling,
-            )
-
-        grads = _replay_vjp(
-            replay,
-            ctx.saved_tensors,
-            [ctx.needs_input_grad[i] for i in positions],
-            grad_output,
-        )
-        return _expand(grads, positions, arity=8)
-
-    torch.library.register_autograd(
-        "transport::unbalanced_sinkhorn",
-        backward,
-        setup_context=setup_context,
-    )
-
-
-def _register_sinkhorn_divergence() -> None:
-    positions = _DIFFERENTIABLE["sinkhorn_divergence"]
-
-    def setup_context(ctx: Any, inputs: tuple, output: torch.Tensor) -> None:
-        del output
-        cost, eps, n_iter, a, b, mask, scaling, cost_aa, cost_bb = inputs
-        ctx.save_for_backward(cost, a, b)
-        ctx.mask, ctx.eps, ctx.n_iter, ctx.scaling = mask, eps, n_iter, scaling
-        # The self-cost matrices are inputs to the debiasing terms but carry
-        # no gradient of their own: they are fixed geometry, not predictions.
-        ctx.cost_aa, ctx.cost_bb = cost_aa, cost_bb
-
-    def backward(ctx: Any, grad_output: torch.Tensor) -> tuple:
-        def replay(
-            cost: torch.Tensor, a: torch.Tensor, b: torch.Tensor
-        ) -> torch.Tensor:
-            return sinkhorn_divergence(
-                fuse_mask_into_cost(cost, ctx.mask),
-                eps=ctx.eps,
-                n_iter=ctx.n_iter,
-                a=a,
-                b=b,
-                scaling=ctx.scaling,
-                cost_aa=ctx.cost_aa,
-                cost_bb=ctx.cost_bb,
-            )
-
-        grads = _replay_vjp(
-            replay,
-            ctx.saved_tensors,
-            [ctx.needs_input_grad[i] for i in positions],
-            grad_output,
-        )
-        return _expand(grads, positions, arity=9)
-
-    torch.library.register_autograd(
-        "transport::sinkhorn_divergence",
-        backward,
-        setup_context=setup_context,
-    )
-
-
-def register_matrix_autograd() -> None:
-    """
-    Attach the replay formula to all three Sinkhorn matrix ops.
-
-    Called once at package import. ``exact_emd`` is excluded: it is a
-    network simplex whose output is piecewise constant in the cost, so
-    replaying it yields no gradient rather than a wrong one.
-    """
-    _register_log_sinkhorn()
-    _register_unbalanced_sinkhorn()
-    _register_sinkhorn_divergence()

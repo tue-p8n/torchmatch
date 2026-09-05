@@ -11,40 +11,47 @@ Three helpers:
   a mask is provided, so the downstream solver sees a uniform cost.
 
 Structural checks (ndim, dtype, device) read metadata and are free.
-The value checks are not: each reduces a tensor to one boolean that
+The value checks are not: each reduces a tensor to one number that
 Python then branches on, which materializes a device value on the host.
 :func:`skip_value_checks` says when to omit them.
 """
 
 from __future__ import annotations
 
+import math
+
 import torch
-from torch._subclasses.fake_tensor import FakeTensor
+from torch._subclasses.fake_tensor import is_fake
+from torch.fx.experimental.proxy_tensor import get_proxy_mode
 
 
-def skip_value_checks(cost: torch.Tensor) -> bool:
+def skip_value_checks(tensor: torch.Tensor) -> bool:
     """
-    Report whether ``cost``'s value checks must be skipped.
+    Report whether ``tensor``'s value checks must be skipped.
 
     Branching on a reduced tensor is not merely slow under tracing, it is
     either impossible or wrong. Under Dynamo the branch is a graph break;
     under ``torch.jit.trace`` the taken branch is burned into the trace as
-    if it held for every future input; and on a ``FakeTensor`` there is no
-    value to read, so the branch raises outright. Each case wants the same
-    thing, which is for the check not to run.
+    if it held for every future input; under ``make_fx`` and on a fake
+    tensor there is no value to read, so the branch raises outright. Each
+    case wants the same thing, which is for the check not to run.
 
-    The three conditions are disjoint in practice and all three are needed:
-    ``torch.compiler.is_compiling()`` is False under ``torch.jit.trace``,
-    and both are False for a fake tensor reached outside a compile.
+    The conditions overlap only partly, so all are needed.
+    ``torch.compiler.is_compiling()`` covers Dynamo and export but is False
+    under ``torch.jit.trace`` and ``make_fx``; a proxy mode is active under
+    ``make_fx`` in every tracing mode; ``is_fake`` catches a fake tensor
+    reached outside any of those, including one wrapped by a functional or
+    other traceable wrapper subclass, which a bare ``isinstance`` misses.
     """
     return (
         torch.compiler.is_compiling()
         or torch.jit.is_tracing()
-        or isinstance(cost, FakeTensor)
+        or get_proxy_mode() is not None
+        or is_fake(tensor)
     )
 
 
-def validate_cost(cost: torch.Tensor, *, check_finite: bool = True) -> None:
+def validate_cost(cost: torch.Tensor, *, check_values: bool = True) -> None:
     """
     Validate ``cost`` dtype, device, ndim, and reject NaN / ``-inf``.
 
@@ -52,7 +59,7 @@ def validate_cost(cost: torch.Tensor, *, check_finite: bool = True) -> None:
     ----------
     cost
         The cost matrix to check.
-    check_finite
+    check_values
         Whether to run the NaN / ``-inf`` rejection. The structural checks
         always run: they read metadata, cost nothing, and turning them off
         would only move a clear error to a confusing one deeper in. Pass
@@ -86,16 +93,20 @@ def validate_cost(cost: torch.Tensor, *, check_finite: bool = True) -> None:
             f"cuda, got {cost.device}"
         )
         raise ValueError(msg)
-    if not check_finite or skip_value_checks(cost):
+    if not check_values or skip_value_checks(cost) or cost.numel() == 0:
         return
     # Mirrors torchmatch.assignment._solve._validate: RuntimeError, not
     # ValueError, matches the TORCH_CHECK surface the C++ ops raise on the
     # same invariants. Fail-fast at the entry is far cheaper than a kernel
-    # crash inside an LSE loop, so this stays the default.
-    if torch.isnan(cost).any():
+    # crash inside an LSE loop, so this stays the default. One reduction and
+    # one host read answer both questions: min propagates NaN, and -inf is
+    # the minimum whenever it is present. +inf never wins a min, so a
+    # forbidden edge passes.
+    lowest = cost.min().item()
+    if math.isnan(lowest):
         msg = "torchmatch.transport.matrix.solve: cost contains NaN"
         raise RuntimeError(msg)
-    if (cost == float("-inf")).any():
+    if lowest == -math.inf:
         msg = "torchmatch.transport.matrix.solve: cost contains -inf"
         raise RuntimeError(msg)
 
@@ -107,7 +118,7 @@ def _coerce_one_marginal(  # noqa: PLR0913
     name: str,
     dim_label: str,
     shape: tuple[int, int],
-    check_finite: bool = True,
+    check_values: bool = True,
 ) -> torch.Tensor:
     """Lift one side (a or b) to ``shape`` (= ``(batch, expected_len)``)."""
     batch, expected_len = shape
@@ -143,7 +154,12 @@ def _coerce_one_marginal(  # noqa: PLR0913
             )
             raise ValueError(msg)
         out = x.to(device=device, dtype=dtype)
-    if check_finite and not skip_value_checks(out) and (out < 0).any():
+    if (
+        check_values
+        and not skip_value_checks(out)
+        and out.numel() != 0
+        and out.min().item() < 0
+    ):
         msg = f"torchmatch.transport.matrix.solve: {name} must be non-negative"
         raise ValueError(msg)
     return out
@@ -154,7 +170,7 @@ def coerce_marginals(
     a: torch.Tensor | None,
     b: torch.Tensor | None,
     *,
-    check_finite: bool = True,
+    check_values: bool = True,
 ) -> tuple[torch.Tensor, torch.Tensor]:
     """
     Lift a, b to (B, N) / (B, M) with uniform defaults.
@@ -163,7 +179,7 @@ def coerce_marginals(
     shape. The dispatcher squeezes the leading B back for 2-D input on
     the return path.
 
-    ``check_finite`` gates the non-negativity check, on the same terms as
+    ``check_values`` gates the non-negativity check, on the same terms as
     :func:`validate_cost`: it is the one part of this that has to read a
     value back to the host.
     """
@@ -179,7 +195,7 @@ def coerce_marginals(
         name="a",
         dim_label="N",
         shape=(batch, n),
-        check_finite=check_finite,
+        check_values=check_values,
     )
     b_out = _coerce_one_marginal(
         cost,
@@ -187,7 +203,7 @@ def coerce_marginals(
         name="b",
         dim_label="M",
         shape=(batch, m),
-        check_finite=check_finite,
+        check_values=check_values,
     )
     return a_out, b_out
 
