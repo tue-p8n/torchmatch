@@ -51,12 +51,25 @@ Per-family pattern: `solve()` (unified dispatcher) and `ops` (direct
   `jonker_dense_batch_unpacked`, `jonker_compact_batch_unpacked`, `greedy`;
   `munkres`, `hybrid`, `lawler` when CUDA is available.
 
+`solve()`, `ops.greedy`, and `auction_assignment` reject `NaN` / `-inf`
+the same way transport's entry points do:
+`assignment._validate.check_finite` stands aside under Dynamo,
+`torch.jit.trace`, `make_fx`, and on a fake tensor,
+for the same reason transport's `skip_value_checks` does
+(see Input semantics below). No `validate` opt-out exists here;
+the eager cost is one reduction, not enough to warrant a second
+public parameter on a second face.
+
 ### `torchmatch.transport.matrix`
 
-- **`solve(cost, *, backend, reg, n_iter, mask, a, b, scaling, rho, cost_aa, cost_bb, unpack)`**:
+- **`solve(cost, *, backend, reg, n_iter, mask, a, b, scaling, rho, cost_aa, cost_bb, unpack, validate)`**:
   dispatcher. `cost` is (N,M) or (B,N,M). Returns log-plan or scalar
   divergence. `unpack=True` returns `(log_plan, f, g)` dual potentials
-  (`f`/`g` are `None` for `EXACT_EMD`).
+  (`f`/`g` are `None` for `EXACT_EMD`;
+  `SINKHORN_DIVERGENCE` returns `(divergence, None, None)`).
+  `validate=False` skips the NaN / `-inf` and marginal-non-negativity checks;
+  structural checks always run,
+  as does the `+inf` rejection of `EXACT_EMD`, which guards correctness.
 - **`marginal_error(log_plan, a, b)`**: max absolute deviation of plan
   row/col sums from marginals — useful for checking Sinkhorn convergence.
 - **`Backend`**: `StrEnum` — `AUTO`, `LOG_SINKHORN` (AUTO default),
@@ -77,6 +90,21 @@ Per-family pattern: `solve()` (unified dispatcher) and `ops` (direct
 
 - `NaN` and `-inf`: **rejected** at the entry point (signal upstream bugs).
 - `+inf`: **forbidden edge**, rewritten to a per-call finite sentinel.
+
+Rejection needs a reduced tensor read back as a Python number.
+That branch is a graph break under Dynamo,
+is burned into a `torch.jit.trace` as if it held for every future input,
+and raises outright under `make_fx` and on a fake tensor
+(including one wrapped by a functional wrapper),
+so `transport.matrix._validate.skip_value_checks` omits it
+in every one of those cases
+(`assignment._validate.skip_value_checks` is the same predicate,
+duplicated rather than shared across the sub-package boundary).
+`solve(..., validate=False)` omits it in eager use too for transport,
+for callers whose costs are finite by construction;
+assignment has no such opt-out (see above).
+Structural checks (ndim, dtype, device, shape) read metadata only
+and always run.
 
 ## Dev environment
 
@@ -202,7 +230,23 @@ FakeTensor shapes (`transport/_loader.py`):
   unbalanced_sinkhorn (pure-Python LSE loops, CPU + CUDA). C++ network
   simplex under `matrix/cpu/exact/` for `exact_emd`. Dispatcher in
   `_solve.py`. `_schedule.py` builds the Schmitzer 2019 eps-scaling
-  schedule. `_validate.py` handles input validation and mask fusion.
+  schedule as a tensor expression (no host read), so a scaled call is
+  compile-traceable exactly like `scaling=None`.
+  `_validate.py` handles input validation and mask fusion.
+  `_autograd.py` holds the replay formula for `log_sinkhorn` and
+  `unbalanced_sinkhorn`: backward re-runs the forward under `enable_grad`
+  and takes its VJP, which is gradient checkpointing of the iteration
+  and matches the unrolled derivative the `solve()` gradcheck tests pin.
+  Each op module attaches it right after defining the op;
+  argument names and positions come from the op schema,
+  and every tensor input (the divergence's self-costs included) takes a gradient.
+  `sinkhorn_divergence` registers its own formula instead
+  (in `_sinkhorn_divergence.py`, not the shared one):
+  its `ab` / `aa` / `bb` sub-solves are independent OT problems
+  tied together only by the marginals,
+  so the backward replays only the sub-solve(s) a wanted input actually
+  touches instead of recomputing all three.
+  `exact_emd` stays non-differentiable.
 - `samples/`: Triton streaming kernels under `kernels/`; autograd via
   `torch.library.register_autograd` in `_autograd.py` (analytic online
   backward); implicit gradient via IFT + CG in `_implicit_grad.py` and

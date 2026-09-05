@@ -19,6 +19,8 @@ from __future__ import annotations
 
 import torch
 
+from torchmatch.assignment._validate import check_finite
+
 
 def _greedy_2d(cost: torch.Tensor) -> torch.Tensor:
     n, m = cost.shape
@@ -69,11 +71,9 @@ def greedy(cost: torch.Tensor) -> torch.Tensor:
     # The op is a public entry point reachable as torch.ops.assignment.greedy;
     # validation cannot rely on the solve() dispatcher having run first.
     # RuntimeError mirrors what the C++ ops raise via TORCH_CHECK.
-    if torch.isnan(cost).any():
-        msg = "assignment.greedy: cost contains NaN"
-        raise RuntimeError(msg)
-    if (cost == float("-inf")).any():
-        msg = "assignment.greedy: cost contains -inf"
+    bad = check_finite(cost)
+    if bad is not None:
+        msg = f"assignment.greedy: cost contains {bad}"
         raise RuntimeError(msg)
     if cost.ndim == 2:
         return _greedy_2d(cost)

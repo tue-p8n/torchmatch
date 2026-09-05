@@ -14,7 +14,10 @@ from __future__ import annotations
 
 import torch
 
-from torchmatch.transport.matrix._validate import validate_cost
+from torchmatch.transport.matrix._validate import (
+    skip_value_checks,
+    validate_cost,
+)
 
 
 def exact_emd(
@@ -23,6 +26,7 @@ def exact_emd(
     a: torch.Tensor,
     b: torch.Tensor,
     mask: torch.Tensor | None = None,
+    check_values: bool = True,
 ) -> torch.Tensor:
     """
     Compute the exact Earth Mover's Distance transport plan (CPU only).
@@ -43,6 +47,11 @@ def exact_emd(
     mask
         Boolean mask (B, N, M) or (N, M). False entries are set to ``+inf``
         before the solver, which raises an error (see above).
+    check_values
+        Whether to run the NaN / ``-inf`` rejection, on the same terms as
+        :func:`._validate.validate_cost`. The ``+inf`` rejection is not
+        gated by it: that one guards correctness, not diagnosis, and is
+        omitted only under tracing, where it cannot be answered.
 
     Returns
     -------
@@ -56,14 +65,14 @@ def exact_emd(
         is unavailable.
 
     """
-    validate_cost(cost)
+    validate_cost(cost, check_values=check_values)
     if cost.device.type != "cpu":
         msg = (
             "torchmatch.transport.matrix.solve: EXACT_EMD is CPU-only "
             f"(got device {cost.device})"
         )
         raise ValueError(msg)
-    if torch.isinf(cost).any():
+    if not skip_value_checks(cost) and torch.isinf(cost).any():
         msg = (
             "torchmatch.transport.matrix.solve: EXACT_EMD does not support "
             "+inf (forbidden-edge) costs. The dense network simplex does "
