@@ -19,6 +19,8 @@ from typing import Literal, overload
 
 import torch
 
+from torchmatch.assignment._validate import check_finite
+
 __all__ = ["Backend", "resolve_backend", "solve"]
 
 
@@ -230,17 +232,13 @@ def _validate(cost: torch.Tensor) -> None:
         raise ValueError(msg)
     # RuntimeError (not ValueError) mirrors what the C++ ops raise via
     # TORCH_CHECK on the same invariants, so a caller catching by type sees
-    # one consistent surface. The .any() result forces a host materialization
-    # and breaks the graph under torch.compile; torch._check on the same
-    # predicate would still need that materialization (it requires a Python
-    # bool / SymBool, not a 0-dim Tensor), so it would not buy a
-    # graph-break-free path here. Accept the break for early rejection at
-    # the dispatcher entry.
-    if torch.isnan(cost).any():
-        msg = "torchmatch.assignment.solve: cost contains NaN"
-        raise RuntimeError(msg)
-    if (cost == float("-inf")).any():
-        msg = "torchmatch.assignment.solve: cost contains -inf"
+    # one consistent surface. check_finite stands aside under tracing (see
+    # its docstring); solve() is a plain function, so tracing it directly
+    # (torch.compile, make_fx, a fake tensor reaching it outside either)
+    # would otherwise hit this branch on a value that cannot be read.
+    bad = check_finite(cost)
+    if bad is not None:
+        msg = f"torchmatch.assignment.solve: cost contains {bad}"
         raise RuntimeError(msg)
 
 
