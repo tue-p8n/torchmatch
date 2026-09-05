@@ -28,14 +28,15 @@ from torchmatch.transport.matrix._validate import (
 )
 
 # The Sinkhorn-family backends call the Python iteration functions
-# directly rather than torch.ops.transport.<op>. Going through the
-# custom_op boundary is opaque to autograd (custom_op requires an
-# explicit register_autograd which we do not provide for the matrix
-# face), so dispatching via the op would break gradcheck through
-# solve(). The ops themselves are still registered so torch.ops.transport.*
-# entries are usable and ship FakeTensor kernels for tracing /
-# direct callers that need an opaque graph node. EXACT_EMD is the
-# exception: it has no autograd, so it goes through the op.
+# directly rather than torch.ops.transport.<op>. The ops now carry an
+# autograd formula of their own (see _autograd), so the original reason
+# for this split -- that the custom_op boundary was opaque to autograd --
+# no longer holds, and routing solve() through the ops would additionally
+# give a compiled caller one opaque node instead of an unrolled loop.
+# That is deliberately left as a separate change: it would move every
+# existing gradient consumer of solve() onto a new path in the same commit
+# that introduces the path. EXACT_EMD has no autograd either way and goes
+# through its op.
 
 __all__ = ["Backend", "marginal_error", "solve"]
 
@@ -74,6 +75,7 @@ def solve(
     cost_aa: torch.Tensor | None = ...,
     cost_bb: torch.Tensor | None = ...,
     unpack: Literal[False] = False,
+    validate: bool = ...,
 ) -> torch.Tensor: ...
 
 
@@ -92,6 +94,7 @@ def solve(
     cost_aa: torch.Tensor | None = ...,
     cost_bb: torch.Tensor | None = ...,
     unpack: Literal[True],
+    validate: bool = ...,
 ) -> tuple[torch.Tensor, torch.Tensor | None, torch.Tensor | None]: ...
 
 
@@ -109,15 +112,27 @@ def solve(  # noqa: PLR0913, PLR0911, PLR0912, C901
     cost_aa: torch.Tensor | None = None,
     cost_bb: torch.Tensor | None = None,
     unpack: bool = False,
+    validate: bool = True,
 ) -> torch.Tensor | tuple[torch.Tensor, torch.Tensor | None, torch.Tensor | None]:
+    """
+    Solve a cost-matrix optimal-transport problem.
+
+    ``validate`` gates the input checks that have to read a value back to
+    the host: the NaN / ``-inf`` rejection on ``cost`` and the
+    non-negativity check on the marginals. The structural checks on ndim,
+    dtype, device and shape always run, because they read metadata and cost
+    nothing. Pass ``validate=False`` on a hot path whose inputs are finite
+    by construction; the checks are skipped automatically under tracing
+    regardless, where they cannot be answered at all.
+    """
     backend = _coerce_backend(backend)
-    validate_cost(cost)
+    validate_cost(cost, check_finite=validate)
 
     squeeze_batch = cost.ndim == 2
     if squeeze_batch:
         cost = cost.unsqueeze(0)
 
-    a_, b_ = coerce_marginals(cost, a, b)
+    a_, b_ = coerce_marginals(cost, a, b, check_finite=validate)
     mask_to_fuse = mask.unsqueeze(0) if (squeeze_batch and mask is not None) else mask
     cost = fuse_mask_into_cost(cost, mask_to_fuse)
 

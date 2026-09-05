@@ -21,10 +21,17 @@ if torch.cuda.is_available():
     load_cuda()
 
 from torchmatch.transport.matrix import ops  # noqa: E402
+from torchmatch.transport.matrix._autograd import (  # noqa: E402
+    register_matrix_autograd,
+)
 from torchmatch.transport.matrix._solve import (  # noqa: E402
     Backend,
     marginal_error,
     solve,
 )
+
+# The ops are registered by importing their defining modules above; the
+# autograd formulas attach to those op names and so must come after.
+register_matrix_autograd()
 
 __all__ = ["Backend", "marginal_error", "ops", "solve"]

@@ -53,10 +53,11 @@ Per-family pattern: `solve()` (unified dispatcher) and `ops` (direct
 
 ### `torchmatch.transport.matrix`
 
-- **`solve(cost, *, backend, reg, n_iter, mask, a, b, scaling, rho, cost_aa, cost_bb, unpack)`**:
+- **`solve(cost, *, backend, reg, n_iter, mask, a, b, scaling, rho, cost_aa, cost_bb, unpack, validate)`**:
   dispatcher. `cost` is (N,M) or (B,N,M). Returns log-plan or scalar
   divergence. `unpack=True` returns `(log_plan, f, g)` dual potentials
-  (`f`/`g` are `None` for `EXACT_EMD`).
+  (`f`/`g` are `None` for `EXACT_EMD`). `validate=False` skips the NaN /
+  `-inf` and marginal-non-negativity checks; structural checks always run.
 - **`marginal_error(log_plan, a, b)`**: max absolute deviation of plan
   row/col sums from marginals — useful for checking Sinkhorn convergence.
 - **`Backend`**: `StrEnum` — `AUTO`, `LOG_SINKHORN` (AUTO default),
@@ -77,6 +78,14 @@ Per-family pattern: `solve()` (unified dispatcher) and `ops` (direct
 
 - `NaN` and `-inf`: **rejected** at the entry point (signal upstream bugs).
 - `+inf`: **forbidden edge**, rewritten to a per-call finite sentinel.
+
+Rejection needs a reduced tensor read back as a Python bool. That branch is
+a graph break under Dynamo, is burned into a `torch.jit.trace` as if it held
+for every future input, and raises outright on a `FakeTensor`, so
+`_validate.skip_value_checks` omits it in all three cases. `solve(...,
+validate=False)` omits it in eager use too, for callers whose costs are
+finite by construction. Structural checks (ndim, dtype, device, shape) read
+metadata only and always run.
 
 ## Dev environment
 
@@ -203,6 +212,10 @@ FakeTensor shapes (`transport/_loader.py`):
   simplex under `matrix/cpu/exact/` for `exact_emd`. Dispatcher in
   `_solve.py`. `_schedule.py` builds the Schmitzer 2019 eps-scaling
   schedule. `_validate.py` handles input validation and mask fusion.
+  `_autograd.py` registers the three Sinkhorn ops' backward by replaying the
+  forward under `enable_grad` and taking its VJP, which is gradient
+  checkpointing of the iteration and matches the unrolled derivative the
+  `solve()` gradcheck tests pin. `exact_emd` stays non-differentiable.
 - `samples/`: Triton streaming kernels under `kernels/`; autograd via
   `torch.library.register_autograd` in `_autograd.py` (analytic online
   backward); implicit gradient via IFT + CG in `_implicit_grad.py` and
