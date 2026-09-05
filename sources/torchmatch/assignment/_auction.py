@@ -4,11 +4,13 @@ from __future__ import annotations
 
 import torch
 
+from torchmatch.assignment._validate import check_finite
+
 __all__ = ["auction_assignment"]
 
 
 @torch.no_grad()
-def auction_assignment(  # noqa: PLR0915, C901
+def auction_assignment(  # noqa: PLR0915
     cost_matrix: torch.Tensor,
     bid_size: float,
     max_iters: int = 100_000,
@@ -49,11 +51,13 @@ def auction_assignment(  # noqa: PLR0915, C901
     if bid_size <= 0:
         msg = f"bid_size must be strictly positive, got {bid_size}"
         raise ValueError(msg)
-    if torch.isnan(cost_matrix).any():
-        msg = "cost_matrix contains NaN"
-        raise ValueError(msg)
-    if torch.isneginf(cost_matrix).any():
-        msg = "cost_matrix contains -inf"
+    # auction_assignment is a plain function with no fake-tensor-routed
+    # forward, so tracing it directly (torch.compile, make_fx, a fake
+    # tensor reaching it outside either) would otherwise hit this branch
+    # on a value that cannot be read; check_finite stands aside then.
+    bad = check_finite(cost_matrix)
+    if bad is not None:
+        msg = f"cost_matrix contains {bad}"
         raise ValueError(msg)
 
     # Cast non-floating-point inputs and low-precision floats to float32.
