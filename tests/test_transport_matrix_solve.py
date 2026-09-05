@@ -46,6 +46,19 @@ def test_solve_unpack_returns_plan_f_g_triple_3d():
     assert g.shape == (2, 4)
 
 
+def test_solve_unpack_returns_a_triple_for_sinkhorn_divergence():
+    # No plan and no potentials to hand back, but the same shape of result
+    # as every other backend, so `plan, f, g = solve(..., unpack=True)`
+    # never unpacks a batch dimension by accident.
+    cost = torch.rand(3, 4, 4, dtype=torch.float64)
+    divergence, f, g = solve(
+        cost, backend=Backend.SINKHORN_DIVERGENCE, reg=0.5, n_iter=5, unpack=True
+    )
+    assert divergence.shape == (3,)
+    assert f is None
+    assert g is None
+
+
 def test_solve_auto_backend_is_log_sinkhorn():
     cost = torch.rand(3, 4, dtype=torch.float64)
     out_auto = solve(cost, backend=Backend.AUTO, reg=0.1, n_iter=50)

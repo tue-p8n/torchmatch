@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import torch
 
+from torchmatch.transport.matrix._autograd import register_replay_autograd
 from torchmatch.transport.matrix._schedule import build_eps_schedule
 from torchmatch.transport.matrix._validate import (
     fuse_mask_into_cost,
@@ -264,3 +265,6 @@ def _log_sinkhorn_fake(  # noqa: PLR0913
     del eps, n_iter, a, b, mask, scaling
     torch._check(cost.dim() == 3, lambda: "cost must be 3D (B, N, M)")
     return cost.new_empty(cost.size(0), cost.size(1), cost.size(2))
+
+
+register_replay_autograd("log_sinkhorn", log_sinkhorn_plan)

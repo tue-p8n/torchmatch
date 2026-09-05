@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import torch
 
+from torchmatch.transport.matrix._autograd import register_replay_autograd
 from torchmatch.transport.matrix._log_sinkhorn import (
     _LOG_KERNEL_SAFE_FILL,
     _inf_row_col_masks,
@@ -151,3 +152,6 @@ def _unbalanced_sinkhorn_fake(  # noqa: PLR0913
     del eps, n_iter, rho, a, b, mask, scaling
     torch._check(cost.dim() == 3, lambda: "cost must be 3D (B, N, M)")
     return cost.new_empty(cost.size(0), cost.size(1), cost.size(2))
+
+
+register_replay_autograd("unbalanced_sinkhorn", unbalanced_sinkhorn_plan)
