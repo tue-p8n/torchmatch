@@ -82,15 +82,10 @@ def test_op_backward_does_not_double_a_gradient_when_a_equals_b(op: str):
 
     via_solve_a = w.clone().detach().requires_grad_()
     via_solve_b = w.clone().detach().requires_grad_()
-    backend = {
-        "log_sinkhorn": Backend.LOG_SINKHORN,
-        "unbalanced_sinkhorn": Backend.UNBALANCED_SINKHORN,
-        "sinkhorn_divergence": Backend.SINKHORN_DIVERGENCE,
-    }[op]
     kwargs = {"rho": 0.5} if op == "unbalanced_sinkhorn" else {}
     out = solve(
         cost,
-        backend=backend,
+        backend=Backend(op),
         reg=0.5,
         n_iter=20,
         a=via_solve_a,
