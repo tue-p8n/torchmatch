@@ -52,14 +52,45 @@ cost, so replaying it yields no gradient rather than a wrong one.
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from typing import Any
 
 import torch
 
 from torchmatch.transport.matrix._validate import fuse_mask_into_cost
 
-__all__ = ["register_replay_autograd", "schema_layout"]
+__all__ = ["dedupe_by_identity", "register_replay_autograd", "schema_layout"]
+
+
+def dedupe_by_identity(
+    pairs: Iterable[tuple[int, torch.Tensor]],
+) -> list[tuple[int, torch.Tensor]]:
+    """
+    Keep the first ``(position, tensor)`` pair seen for each distinct tensor object.
+
+    Two positions can share the same tensor object (e.g. a caller passing
+    one tensor for both ``a`` and ``b``, or ``cost_aa`` and ``cost_bb``).
+    ``torch.autograd.grad`` already returns the full total derivative for a
+    tensor listed once, summed over every path that reaches it, including a
+    replay where the same object was bound to two argument positions.
+    Listing it twice does not split that total, it repeats it (verified:
+    ``torch.autograd.grad(y, [x, x])`` returns the same value for both
+    entries), and writing that value into two of an op's own input
+    positions makes the autograd engine's own accumulation at the shared
+    leaf add them, doubling the gradient. Querying once per unique tensor
+    and keeping only the first position that held it lets the caller leave
+    every other aliased position at ``None``, so the leaf's total stays at
+    the correct single copy. Shared by :func:`register_replay_autograd` and
+    ``sinkhorn_divergence``'s own specialized formula.
+    """
+    seen: set[int] = set()
+    deduped: list[tuple[int, torch.Tensor]] = []
+    for i, tensor in pairs:
+        key = id(tensor)
+        if key not in seen:
+            seen.add(key)
+            deduped.append((i, tensor))
+    return deduped
 
 
 def _is_tensor_arg(arg_type: Any) -> bool:
@@ -124,7 +155,12 @@ def register_replay_autograd(op_name: str, solver: Callable[..., torch.Tensor]) 
             else:
                 saved = saved.detach()
             tensors[names[i]] = saved
-        if not wanted:
+        # dedupe_by_identity guards against two positions sharing the same
+        # tensor object (e.g. a caller passing one tensor for both a and
+        # b); see its docstring for why that must collapse to one
+        # autograd.grad query instead of two.
+        deduped = dedupe_by_identity(wanted)
+        if not deduped:
             return tuple(grads)
 
         with torch.enable_grad():
@@ -139,12 +175,12 @@ def register_replay_autograd(op_name: str, solver: Callable[..., torch.Tensor]) 
         # autograd would otherwise report as an error rather than a zero.
         found = torch.autograd.grad(
             output,
-            [tensor for _, tensor in wanted],
+            [tensor for _, tensor in deduped],
             grad_output,
             allow_unused=True,
             create_graph=torch.is_grad_enabled(),
         )
-        for (i, _), grad in zip(wanted, found, strict=True):
+        for (i, _), grad in zip(deduped, found, strict=True):
             grads[i] = grad
         return tuple(grads)
 

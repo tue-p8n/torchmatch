@@ -37,7 +37,7 @@ from typing import Any
 
 import torch
 
-from torchmatch.transport.matrix._autograd import schema_layout
+from torchmatch.transport.matrix._autograd import dedupe_by_identity, schema_layout
 from torchmatch.transport.matrix._log_sinkhorn import log_sinkhorn_plan
 from torchmatch.transport.matrix._validate import (
     fuse_mask_into_cost,
@@ -279,18 +279,21 @@ def _register_divergence_autograd() -> None:
         # replay output carries no graph and every gradient is None.
         if not reduced.requires_grad:
             return tuple(grads)
+        # Two wanted names can hold the same tensor object (e.g. cost_aa
+        # and cost_bb passed one shared self-cost); dedupe_by_identity
+        # guards against that, see its docstring in _autograd.py.
+        deduped = dedupe_by_identity(wanted.values())
         # allow_unused covers a wanted input the replayed terms never read
         # (e.g. cost_aa unwanted and unset while a is wanted), which
         # autograd would otherwise report as an error rather than a zero.
-        wanted_tensors = [tensor for _, tensor in wanted.values()]
         found = torch.autograd.grad(
             reduced,
-            wanted_tensors,
+            [tensor for _, tensor in deduped],
             grad_output,
             allow_unused=True,
             create_graph=torch.is_grad_enabled(),
         )
-        for (i, _), grad in zip(wanted.values(), found, strict=True):
+        for (i, _), grad in zip(deduped, found, strict=True):
             grads[i] = grad
         return tuple(grads)
 
