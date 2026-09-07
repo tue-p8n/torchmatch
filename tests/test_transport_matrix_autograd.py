@@ -339,6 +339,41 @@ def test_divergence_op_backward_replays_only_needed_terms(
         assert tensors[name].grad is not None
 
 
+def test_divergence_op_backward_matches_solve_for_a_mixed_two_term_replay():
+    # test_divergence_op_backward_replays_only_needed_terms above pins the
+    # call *count* for a mixed selection like ("a",) (replays ab + aa, drops
+    # bb), but never a gradient *value*; only the all-three and single-term
+    # cases are value-checked elsewhere. A sign or 0.5-factor error confined
+    # to exactly a two-term combination would pass the rest of the suite
+    # undetected, so pin one here against the solve() reference path.
+    torch.manual_seed(0)
+    base = [torch.rand(1, 3, 3, dtype=torch.float64) for _ in range(3)]
+    a_base = torch.full((1, 3), 1.0 / 3, dtype=torch.float64)
+    b = torch.full((1, 3), 1.0 / 3, dtype=torch.float64)
+
+    a_via_solve = a_base.clone().requires_grad_()
+    via_solve = [t.clone() for t in base]
+    solve(
+        via_solve[0],
+        backend=Backend.SINKHORN_DIVERGENCE,
+        reg=0.5,
+        n_iter=10,
+        a=a_via_solve,
+        b=b,
+        cost_aa=via_solve[1],
+        cost_bb=via_solve[2],
+    ).sum().backward()
+
+    a_via_op = a_base.clone().requires_grad_()
+    via_op = [t.clone() for t in base]
+    torch.ops.transport.sinkhorn_divergence(
+        via_op[0], 0.5, 10, a_via_op, b, None, None, via_op[1], via_op[2]
+    ).sum().backward()
+
+    assert a_via_op.grad is not None
+    assert torch.allclose(a_via_solve.grad, a_via_op.grad, atol=1e-10)
+
+
 def test_divergence_op_backward_handles_a_dtype_mismatched_self_cost():
     # _expand_self_cost casts cost_aa to cost's dtype before the solve; that
     # cast is differentiable, so the gradient must come back in cost_aa's

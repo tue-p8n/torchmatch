@@ -2,7 +2,7 @@
 Tracing-safe NaN / ``-inf`` rejection shared within the assignment package.
 
 Branching on a reduced tensor is not merely slow under tracing, it is
-either impossible or wrong: under Dynamo the branch is a graph break;
+either impossible or wrong. Under Dynamo the branch is a graph break;
 under ``torch.jit.trace`` the taken branch is burned into the trace as if
 it held for every future input; under ``make_fx`` and on a fake tensor
 there is no value to read, so the branch raises outright.

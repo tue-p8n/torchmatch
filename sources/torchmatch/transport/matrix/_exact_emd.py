@@ -72,7 +72,7 @@ def exact_emd(
             f"(got device {cost.device})"
         )
         raise ValueError(msg)
-    if not skip_value_checks(cost) and torch.isinf(cost).any():
+    if not skip_value_checks(cost) and torch.isposinf(cost).any():
         msg = (
             "torchmatch.transport.matrix.solve: EXACT_EMD does not support "
             "+inf (forbidden-edge) costs. The dense network simplex does "

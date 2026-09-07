@@ -68,8 +68,14 @@ def unbalanced_sinkhorn_plan(  # noqa: PLR0913
     log_u = torch.zeros(b_size, rows, device=device, dtype=dtype)
     log_v = torch.zeros(b_size, cols, device=device, dtype=dtype)
 
-    for step_eps in schedule:
-        damping = 1.0 / (1.0 + step_eps / rho)
+    # Vectorized once over the whole schedule rather than recomputed from
+    # step_eps (a 0-dim tensor) on every iteration: schedule is now a tensor
+    # (for compile-traceability), so per-iteration scalar arithmetic on it
+    # dispatches real device kernels instead of the cheap Python-float math
+    # this used to be.
+    damping_schedule = 1.0 / (1.0 + schedule / rho)
+
+    for step_eps, damping in zip(schedule, damping_schedule, strict=True):
         log_kernel = -cost / step_eps
         log_kernel_row_safe = torch.where(
             inf_row[:, :, None],
