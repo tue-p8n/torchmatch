@@ -65,6 +65,74 @@ def test_log_sinkhorn_op_gradcheck_marginals():
     assert torch.autograd.gradcheck(fn, (a, b), eps=1e-6, atol=1e-4)
 
 
+@pytest.mark.parametrize("op", _SINKHORN_OPS)
+def test_op_backward_does_not_double_a_gradient_when_a_equals_b(op: str):
+    # The replay's autograd.grad call must not list the same tensor object
+    # twice: a single query already returns the full total derivative
+    # (summed over every path reaching it), so listing it again repeats
+    # that total rather than splitting it, and writing the repeat into a
+    # second input position lets the engine's own accumulation at the
+    # shared leaf double the gradient reaching w.grad.
+    torch.manual_seed(0)
+    cost = torch.rand(1, 3, 3, dtype=torch.float64)
+    w = torch.full((1, 3), 1.0 / 3, dtype=torch.float64, requires_grad=True)
+
+    via_op = w.clone().detach().requires_grad_()
+    _reduce(op, cost, via_op, via_op).backward()
+
+    via_solve_a = w.clone().detach().requires_grad_()
+    via_solve_b = w.clone().detach().requires_grad_()
+    backend = {
+        "log_sinkhorn": Backend.LOG_SINKHORN,
+        "unbalanced_sinkhorn": Backend.UNBALANCED_SINKHORN,
+        "sinkhorn_divergence": Backend.SINKHORN_DIVERGENCE,
+    }[op]
+    kwargs = {"rho": 0.5} if op == "unbalanced_sinkhorn" else {}
+    out = solve(
+        cost,
+        backend=backend,
+        reg=0.5,
+        n_iter=20,
+        a=via_solve_a,
+        b=via_solve_b,
+        **kwargs,
+    )
+    (out.exp().sum() if op != "sinkhorn_divergence" else out.sum()).backward()
+    # a and b are distinct leaves on the solve() path, so the correct total
+    # for the shared tensor is their sum, not either one alone.
+    want = via_solve_a.grad + via_solve_b.grad
+
+    assert torch.allclose(via_op.grad, want, atol=1e-10)
+
+
+def test_divergence_op_backward_does_not_double_when_cost_aa_equals_cost_bb():
+    torch.manual_seed(0)
+    cost = torch.rand(1, 3, 3, dtype=torch.float64)
+    a, b = _uniform(3, 3)
+    c = torch.rand(1, 3, 3, dtype=torch.float64, requires_grad=True)
+
+    via_op = c.clone().detach().requires_grad_()
+    torch.ops.transport.sinkhorn_divergence(
+        cost, 0.5, 20, a, b, None, None, via_op, via_op
+    ).sum().backward()
+
+    via_solve_aa = c.clone().detach().requires_grad_()
+    via_solve_bb = c.clone().detach().requires_grad_()
+    solve(
+        cost,
+        backend=Backend.SINKHORN_DIVERGENCE,
+        reg=0.5,
+        n_iter=20,
+        a=a,
+        b=b,
+        cost_aa=via_solve_aa,
+        cost_bb=via_solve_bb,
+    ).sum().backward()
+    want = via_solve_aa.grad + via_solve_bb.grad
+
+    assert torch.allclose(via_op.grad, want, atol=1e-10)
+
+
 def test_divergence_op_differentiates_the_self_costs():
     # In the debiased setting cost_aa = c(x, x) depends on the same
     # predictions as cost, so its gradient is what debiasing contributes;

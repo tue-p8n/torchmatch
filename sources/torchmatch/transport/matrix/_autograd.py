@@ -113,18 +113,39 @@ def register_replay_autograd(op_name: str, solver: Callable[..., torch.Tensor]) 
         needs = ctx.needs_input_grad
         grads: list[torch.Tensor | None] = [None] * len(names)
         tensors: dict[str, torch.Tensor | None] = {}
-        wanted: list[tuple[int, torch.Tensor]] = []
+        # Two positions can share the same tensor object (e.g. a caller
+        # passing one tensor for both a and b). save_for_backward preserves
+        # that identity, so group wanted positions by id(): autograd.grad
+        # already returns the full total derivative for a tensor listed
+        # once, summed over every path that reaches it, including a replay
+        # where the same object was bound to two arguments. Listing it
+        # twice does not split that total, it repeats it (verified:
+        # torch.autograd.grad(y, [x, x]) returns the same value for both
+        # entries), and writing that value into two of the op's own input
+        # positions makes the engine's own accumulation at the shared leaf
+        # add them, doubling the gradient. One autograd.grad call per
+        # unique tensor, its result written to exactly one of its
+        # positions and left None at the rest, keeps the leaf's total at
+        # the correct single copy.
+        order: list[int] = []
+        unique: dict[int, torch.Tensor] = {}
+        aliases: dict[int, list[int]] = {}
         for i, saved in zip(tensor_positions, ctx.saved_tensors, strict=True):
             if saved is None:
                 pass
             elif i < len(needs) and needs[i] and saved.requires_grad:
                 # The caller's tensor, not a detached copy: a gradient taken
                 # with create_graph then stays connected to it.
-                wanted.append((i, saved))
+                key = id(saved)
+                if key not in unique:
+                    order.append(key)
+                    unique[key] = saved
+                    aliases[key] = []
+                aliases[key].append(i)
             else:
                 saved = saved.detach()
             tensors[names[i]] = saved
-        if not wanted:
+        if not unique:
             return tuple(grads)
 
         with torch.enable_grad():
@@ -139,13 +160,13 @@ def register_replay_autograd(op_name: str, solver: Callable[..., torch.Tensor]) 
         # autograd would otherwise report as an error rather than a zero.
         found = torch.autograd.grad(
             output,
-            [tensor for _, tensor in wanted],
+            [unique[key] for key in order],
             grad_output,
             allow_unused=True,
             create_graph=torch.is_grad_enabled(),
         )
-        for (i, _), grad in zip(wanted, found, strict=True):
-            grads[i] = grad
+        for key, grad in zip(order, found, strict=True):
+            grads[aliases[key][0]] = grad
         return tuple(grads)
 
     torch.library.register_autograd(

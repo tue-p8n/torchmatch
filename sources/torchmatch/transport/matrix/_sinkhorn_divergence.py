@@ -279,19 +279,36 @@ def _register_divergence_autograd() -> None:
         # replay output carries no graph and every gradient is None.
         if not reduced.requires_grad:
             return tuple(grads)
+        # Two wanted names can hold the same tensor object (e.g. cost_aa
+        # and cost_bb passed one shared self-cost). autograd.grad already
+        # returns the full total derivative for a tensor listed once;
+        # listing it twice repeats that total rather than splitting it, and
+        # writing the repeated value into both positions makes the engine's
+        # own accumulation at the shared leaf add them, doubling the
+        # gradient. Ask once per unique tensor, write its result to exactly
+        # one of the aliased positions, and leave the rest None.
+        order: list[int] = []
+        unique: dict[int, torch.Tensor] = {}
+        aliases: dict[int, list[int]] = {}
+        for i, tensor in wanted.values():
+            key = id(tensor)
+            if key not in unique:
+                order.append(key)
+                unique[key] = tensor
+                aliases[key] = []
+            aliases[key].append(i)
         # allow_unused covers a wanted input the replayed terms never read
         # (e.g. cost_aa unwanted and unset while a is wanted), which
         # autograd would otherwise report as an error rather than a zero.
-        wanted_tensors = [tensor for _, tensor in wanted.values()]
         found = torch.autograd.grad(
             reduced,
-            wanted_tensors,
+            [unique[key] for key in order],
             grad_output,
             allow_unused=True,
             create_graph=torch.is_grad_enabled(),
         )
-        for (i, _), grad in zip(wanted.values(), found, strict=True):
-            grads[i] = grad
+        for key, grad in zip(order, found, strict=True):
+            grads[aliases[key][0]] = grad
         return tuple(grads)
 
     torch.library.register_autograd(
