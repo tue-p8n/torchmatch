@@ -118,9 +118,12 @@ def test_find_or_download_cuda_prebuilt_skips_on_unsupported_cuda(monkeypatch, l
         assert res is None
 
 
+@pytest.mark.parametrize(
+    ("cuda_version", "variant"), [("12.8", "cu128"), ("13.4", "cu134")]
+)
 @pytest.mark.parametrize("loader", [assignment_loader, transport_loader])
 def test_find_or_download_cuda_prebuilt_downloads_and_caches(
-    monkeypatch, tmp_path, loader
+    monkeypatch, tmp_path, loader, cuda_version, variant
 ):
     monkeypatch.setattr(loader, "force_jit", lambda: False)
     monkeypatch.setattr("torchmatch.__version__", "1.0.0", raising=False)
@@ -133,14 +136,14 @@ def test_find_or_download_cuda_prebuilt_downloads_and_caches(
         patch("platform.system", return_value="Linux"),
         patch("platform.machine", return_value="x86_64"),
         patch("torch.cuda.is_available", return_value=True),
-        patch("torch.version.cuda", "12.8"),
+        patch("torch.version.cuda", cuda_version),
         patch("pathlib.Path.home", return_value=tmp_path),
         patch("urllib.request.urlopen", return_value=mock_response) as mock_urlopen,
     ):
         res = loader.find_or_download_cuda_prebuilt("_assignment_cuda_impl")
 
         # Verify it downloaded the correct URL
-        expected_url = "https://github.com/tue-p8n/torchmatch/releases/download/v1.0.0/_assignment_cuda_impl.linux_x86_64.cu128.so"
+        expected_url = f"https://github.com/tue-p8n/torchmatch/releases/download/v1.0.0/_assignment_cuda_impl.linux_x86_64.{variant}.so"
         mock_urlopen.assert_called_once()
         req = mock_urlopen.call_args[0][0]
         assert req.full_url == expected_url

@@ -23,7 +23,7 @@ By default, this installs the CPU stable-ABI wheel or the source distribution (`
 
 ### Pre-compiled CUDA Wheels
 
-To bypass JIT compilation on GPU machines, install a precompiled CUDA-variant wheel (`+cu126`, `+cu128`, `+cu130`, `+cu132`) from our PEP 503 package index:
+To bypass JIT compilation on GPU machines, install a precompiled CUDA-variant wheel (`+cu126`, `+cu128`, `+cu130`, `+cu132`, `+cu134`) from our PEP 503 package index:
 
 **With `pip`**:
 
@@ -250,6 +250,7 @@ nix develop                       # default = cu128
 nix develop .#cpu                 # CPU-only (sets TORCHMATCH_SKIP_CUDA=1)
 nix develop .#cu126
 nix develop .#cu130
+nix develop .#cu134
 ```
 
 Once inside the shell, the variant venv is already on PATH:
@@ -286,6 +287,7 @@ For a Nix-built artifact of the C++/CUDA extension:
 nix build .#torchmatch-cpu        # CPU only
 nix build .#torchmatch-cu128      # cu128 + torch 2.11
 nix build .#torchmatch-cu130      # cu130 + torch 2.12+
+nix build .#torchmatch-cu134      # cu134 + torch 2.15+
 ```
 
 The result tree contains `result/lib/python3.13/site-packages/torchmatch/`

@@ -1,7 +1,7 @@
 """Generate per-variant PEP 503 simple-repository index files.
 
 For each ``+<variant>`` local version segment in the supplied wheels
-(e.g. ``+cpu``, ``+cu126``, ``+cu128``, ``+cu130``), the script writes
+(e.g. ``+cpu``, ``+cu126``, ``+cu128``, ``+cu130``, ``+cu132``, ``+cu134``), the script writes
 an index at ``<output>/<variant>/torchmatch/index.html`` with hrefs
 pointing at the GitHub Release asset URLs.
 

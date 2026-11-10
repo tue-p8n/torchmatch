@@ -26,7 +26,7 @@ useful on HPC login/compute nodes where installing Nix isn't practical.
 - A working torchmatch install:
 
 ```bash
-uv sync --extra cu128 --all-groups  # or --extra cpu / cu126 / cu130
+uv sync --extra cu128 --all-groups  # or --extra cpu / cu126 / cu130 / cu132 / cu134
 ```
 
 The `bench` dependency group includes `py-cpuinfo`, which the machine-registration step uses to read your CPU model. Install it with:
@@ -68,7 +68,7 @@ through pytest-benchmark, strips your hostname and OS kernel version string from
 benchmarks/results/<slug>/torchmatch-<version>+py<X.Y>+torch<X.Y>+<variant>-<utc-timestamp>Z.json
 ```
 
-`<variant>` is one of `cpu`, `cu126`, `cu128`, `cu130` and matches
+`<variant>` is one of `cpu`, `cu126`, `cu128`, `cu130`, `cu132`, `cu134` and matches
 your installed PyTorch wheel.
 
 A full sweep takes 10 to 30 minutes depending on the box.

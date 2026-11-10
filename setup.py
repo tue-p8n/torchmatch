@@ -99,7 +99,7 @@ def _ext_modules():
                 ],
                 include_dirs=[str(ASSIGNMENT_CPU_CSRC)],
                 extra_compile_args={
-                    "cxx": ["-O3", "-std=c++17", *x86_flags, *stable_abi_flags],
+                    "cxx": ["-O3", "-std=c++20", *x86_flags, *stable_abi_flags],
                 },
                 py_limited_api=BUILD_STABLE_ABI,
             )
@@ -133,7 +133,7 @@ def _ext_modules():
                 include_dirs=[str(ASSIGNMENT_CUDA_CSRC)],
                 extra_compile_args={
                     "cxx": ["-O3", *torch_target_flag],
-                    "nvcc": ["-O3", "-std=c++17", *torch_target_flag],
+                    "nvcc": ["-O3", "-std=c++20", *torch_target_flag],
                 },
             )
         )
@@ -163,7 +163,7 @@ def _ext_modules():
                 # is numerically sensitive; -ffast-math can break the
                 # tie-breaking comparisons and produce wrong pivots.
                 extra_compile_args={
-                    "cxx": ["-O3", "-std=c++17", "-fno-fast-math", *stable_abi_flags],
+                    "cxx": ["-O3", "-std=c++20", "-fno-fast-math", *stable_abi_flags],
                 },
                 py_limited_api=BUILD_STABLE_ABI,
             )
@@ -179,7 +179,7 @@ def _ext_modules():
                 include_dirs=[str(TRANSPORT_CSRC / "matrix" / "cuda")],
                 extra_compile_args={
                     "cxx": ["-O3"],
-                    "nvcc": ["-O3", "-std=c++17"],
+                    "nvcc": ["-O3", "-std=c++20"],
                 },
             )
         )

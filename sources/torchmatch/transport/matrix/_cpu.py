@@ -30,7 +30,7 @@ def _jit_build() -> None:
             str(_CSRC_DIR / "exact" / "EMD_wrapper.cpp"),
         ],
         extra_include_paths=[str(_CSRC_DIR), str(_CSRC_DIR / "exact")],
-        extra_cflags=["-O3", "-std=c++17", "-fno-fast-math"],
+        extra_cflags=["-O3", "-std=c++20", "-fno-fast-math"],
         is_python_module=False,
         verbose=False,
     )

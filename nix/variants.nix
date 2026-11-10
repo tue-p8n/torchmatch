@@ -95,4 +95,8 @@ in
     name = "torchmatch";
     accelerator = "cuda13_2";
   };
+  cu134 = mkVariant {
+    name = "torchmatch";
+    accelerator = "cuda13_4";
+  };
 }
