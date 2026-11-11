@@ -14,7 +14,7 @@
 
     # Documentation framework
     docyard = {
-      url = "github:mapnomad/docyard";
+      url = "github:docyard-project/docyard";
       inputs.nixpkgs.follows = "nixpkgs";
     };
   };
@@ -74,9 +74,7 @@
             let
               v = pkgs.cudaPackages.cudaMajorMinorVersion;
             in
-            if lib.hasPrefix "13.4" v then
-              variants.cu134
-            else if lib.hasPrefix "13.2" v then
+            if lib.hasPrefix "13.2" v then
               variants.cu132
             else if lib.hasPrefix "13." v then
               variants.cu130
@@ -253,8 +251,6 @@
           cudaVariant =
             if cudaVersion == null then
               throw "torchmatch overlay: pkgs.cudaPackages has no cudaMajorMinorVersion"
-            else if lib.hasPrefix "13.4" cudaVersion then
-              variantsFromFinal.cu134
             else if lib.hasPrefix "13.2" cudaVersion then
               variantsFromFinal.cu132
             else if lib.hasPrefix "13." cudaVersion then

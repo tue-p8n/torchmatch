@@ -74,11 +74,6 @@ let
       variant = variants.cu132;
       accelerator = "cuda13_2";
     };
-    cu134 = mkShellFor {
-      name = "cu134";
-      variant = variants.cu134;
-      accelerator = "cuda13_4";
-    };
   };
 in
 shells // { default = shells.${defaultVariantName}; }

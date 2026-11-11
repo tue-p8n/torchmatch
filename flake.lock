@@ -35,15 +35,15 @@
         "treefmt": "treefmt"
       },
       "locked": {
-        "lastModified": 1785070456,
-        "narHash": "sha256-YWZZmv9sfq67OZI8GHPK0SCM6Ex4+kRwT+1XA3Mb2GI=",
-        "owner": "mapnomad",
+        "lastModified": 1794385287,
+        "narHash": "sha256-o3SkzW4UdwptxHQHGZAufiSmUa3YdBxq98X/I+FMeqY=",
+        "owner": "docyard-project",
         "repo": "docyard",
-        "rev": "33d0962c960f2fcc4b21a76fc8a267fc166fe305",
+        "rev": "63112b7efe8797387269b0c79389bd20afcf456f",
         "type": "github"
       },
       "original": {
-        "owner": "mapnomad",
+        "owner": "docyard-project",
         "repo": "docyard",
         "type": "github"
       }
