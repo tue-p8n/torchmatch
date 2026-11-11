@@ -295,6 +295,22 @@
         "type": "github"
       }
     },
+    "nixpkgs-cuda": {
+      "locked": {
+        "lastModified": 1793977579,
+        "narHash": "sha256-WrSODdZFVIs/Hh2NzC0bY+ROByi0bATg8WfePX8dPj8=",
+        "owner": "NixOS",
+        "repo": "nixpkgs",
+        "rev": "4fe25e12eb9f4c744966dd3de5a05246cf098601",
+        "type": "github"
+      },
+      "original": {
+        "owner": "NixOS",
+        "ref": "nixpkgs-unstable",
+        "repo": "nixpkgs",
+        "type": "github"
+      }
+    },
     "nixpkgs-lib": {
       "locked": {
         "lastModified": 1777168982,
@@ -403,6 +419,7 @@
           "tue-p8n",
           "nixpkgs"
         ],
+        "nixpkgs-cuda": "nixpkgs-cuda",
         "treefmt": [
           "tue-p8n",
           "treefmt"
