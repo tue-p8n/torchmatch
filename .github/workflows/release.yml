@@ -79,6 +79,7 @@ jobs:
     runs-on: ubuntu-24.04
     container:
       image: quay.io/pypa/manylinux_2_28_x86_64
+      options: --dns 8.8.8.8 --dns 1.1.1.1
     steps:
       - uses: actions/checkout@v4
         with:
@@ -132,6 +133,7 @@ jobs:
     runs-on: ubuntu-24.04
     container:
       image: quay.io/pypa/manylinux_2_28_x86_64
+      options: --dns 8.8.8.8 --dns 1.1.1.1
     steps:
       - uses: actions/checkout@v4
         with:
@@ -209,9 +211,12 @@ jobs:
             cuda_major: "13"
     container:
       image: ${{ matrix.container }}
+      options: --dns 8.8.8.8 --dns 1.1.1.1
     steps:
       - name: Install build prerequisites in the CUDA container
         run: |
+          echo "nameserver 8.8.8.8" > /etc/resolv.conf
+          echo "nameserver 1.1.1.1" >> /etc/resolv.conf
           apt-get update
           apt-get install -y --no-install-recommends \
             curl ca-certificates git build-essential unzip
