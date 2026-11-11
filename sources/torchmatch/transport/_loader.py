@@ -72,7 +72,7 @@ def find_or_download_cuda_prebuilt(stem: str) -> pathlib.Path | None:
     variant = f"cu{major}{minor}"
 
     # Verify active variant is one of the built target matrices
-    if variant not in {"cu126", "cu128", "cu130", "cu132"}:
+    if variant not in {"cu126", "cu128", "cu130", "cu132", "cu134"}:
         return None
 
     # Cache directory: ~/.cache/torchmatch/v{version}/

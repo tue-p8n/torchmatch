@@ -464,6 +464,6 @@ specs:
   - key: REQUIRES
     value: 'Python 3.13 · PyTorch ≥ 2.11 · x86-64 Linux'
   - key: CUDA WHEELS
-    value: 'cu126 · cu128 · cu130'
+    value: 'cu126 · cu128 · cu130 · cu132 · cu134'
 ---
 ::

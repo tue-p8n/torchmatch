@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import functools
+import os
 from typing import Final
 
 import torch
@@ -34,6 +35,8 @@ def _jit_build() -> None:
         )
         raise RuntimeError(msg)
 
+    os.environ.setdefault("TORCH_DONT_CHECK_COMPILER_ABI", "1")
+
     load(
         name=_EXT_NAME,
         sources=[
@@ -44,8 +47,8 @@ def _jit_build() -> None:
             str(_CSRC_DIR / "lawler.cu"),
         ],
         extra_include_paths=[str(_CSRC_DIR)],
-        extra_cflags=["-O3"],
-        extra_cuda_cflags=["-O3", "-std=c++17"],
+        extra_cflags=["-O3", "-std=c++20"],
+        extra_cuda_cflags=["-O3", "-std=c++20"],
         is_python_module=False,
         verbose=False,
     )

@@ -42,6 +42,7 @@ cu126 = ["torch>=2.11"]
 cu128 = ["torch>=2.11"]
 cu130 = ["torch>=2.12"]
 cu132 = ["torch>=2.12"]
+cu134 = ["torch>=2.15"]
 
 [dependency-groups]
 dev = [
@@ -85,6 +86,11 @@ name = "pytorch-cu132"
 url = "https://download.pytorch.org/whl/cu132"
 explicit = true
 
+[[tool.uv.index]]
+name = "pytorch-cu134"
+url = "https://download.pytorch.org/whl/cu134"
+explicit = true
+
 [tool.uv.sources]
 torch = [
   { index = "pytorch-cpu", extra = "cpu" },
@@ -92,6 +98,7 @@ torch = [
   { index = "pytorch-cu128", extra = "cu128" },
   { index = "pytorch-cu130", extra = "cu130" },
   { index = "pytorch-cu132", extra = "cu132" },
+  { index = "pytorch-cu134", extra = "cu134" },
 ]
 
 [tool.uv]
@@ -110,6 +117,7 @@ conflicts = [
     { extra = "cu128" },
     { extra = "cu130" },
     { extra = "cu132" },
+    { extra = "cu134" },
   ],
 ]
 

@@ -49,7 +49,7 @@ def _jit_build() -> None:
             str(_CSRC_DIR / "ops.cpp"),
         ],
         extra_include_paths=[str(_CSRC_DIR)],
-        extra_cflags=["-O3", "-std=c++17", *_simd_flags()],
+        extra_cflags=["-O3", "-std=c++20", *_simd_flags()],
         is_python_module=False,
         verbose=False,
     )

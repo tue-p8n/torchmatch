@@ -14,9 +14,11 @@
 
     # Documentation framework
     docyard = {
-      url = "github:mapnomad/docyard";
+      url = "github:docyard-project/docyard";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+
+    nixpkgs-cuda.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
   };
 
   outputs =
@@ -74,7 +76,9 @@
             let
               v = pkgs.cudaPackages.cudaMajorMinorVersion;
             in
-            if lib.hasPrefix "13.2" v then
+            if lib.hasPrefix "13.4" v then
+              variants.cu134
+            else if lib.hasPrefix "13.2" v then
               variants.cu132
             else if lib.hasPrefix "13." v then
               variants.cu130
@@ -86,14 +90,26 @@
               throw "torchmatchWithCuda: no wheel for CUDA ${v}. Supported: 12.6, 12.8, 13.x";
         in
         {
-          _module.args.pkgs = import inputs.nixpkgs {
-            inherit system;
-            config = {
-              allowUnfree = true;
-              cudaSupport = true;
-              cudaForwardCompat = true;
+          _module.args.pkgs =
+            let
+              nixpkgsCuda = import inputs.nixpkgs-cuda {
+                inherit system;
+                config.allowUnfree = true;
+              };
+            in
+            import inputs.nixpkgs {
+              inherit system;
+              config = {
+                allowUnfree = true;
+                cudaSupport = true;
+                cudaForwardCompat = true;
+              };
+              overlays = [
+                (_final: _prev: {
+                  cudaPackages_13_4 = nixpkgsCuda.cudaPackages_13_4;
+                })
+              ];
             };
-          };
 
           inherit apps devShells;
 
@@ -251,6 +267,8 @@
           cudaVariant =
             if cudaVersion == null then
               throw "torchmatch overlay: pkgs.cudaPackages has no cudaMajorMinorVersion"
+            else if lib.hasPrefix "13.4" cudaVersion then
+              variantsFromFinal.cu134
             else if lib.hasPrefix "13.2" cudaVersion then
               variantsFromFinal.cu132
             else if lib.hasPrefix "13." cudaVersion then

@@ -117,11 +117,11 @@ specific ABI.
 ```bash
 nix develop                           # default = cu128 devshell
 nix develop .#cpu                     # CPU-only (sets TORCHMATCH_SKIP_CUDA=1)
-nix develop .#cu126 / .#cu128 / .#cu130 / .#cu132
+nix develop .#cu126 / .#cu128 / .#cu130 / .#cu132 / .#cu134
 uv sync --extra cu128 --all-groups    # editable install
 ```
 
-`cu128` is frozen at torch 2.11; `cu130`/`cu132` need torch 2.12+. Use `cu126`
+`cu128` is frozen at torch 2.11; `cu130`/`cu132` need torch 2.12+; `cu134` needs torch 2.15+. Use `cu126`
 for broadest 12.x driver coverage.
 
 ## Common commands
@@ -155,6 +155,7 @@ nix build .#torchmatch-cpu
 nix build .#torchmatch-cu128
 nix build .#torchmatch-cu130
 nix build .#torchmatch-cu132
+nix build .#torchmatch-cu134
 
 # Lint and format
 nix run .#lint
@@ -285,11 +286,11 @@ absent; Python Sinkhorn ops still register; `EXACT_EMD` raises a clear
 with `BUILD_*` environment variables:
 
 - `TORCHMATCH_BUILD_CPU=1` — builds `torchmatch._assignment_cpu_impl`
-  (`-O3 -std=c++17 -mavx2 -mfma` on x86-64).
+  (`-O3 -std=c++20 -mavx2 -mfma` on x86-64).
 - `TORCHMATCH_BUILD_CUDA=1` — builds `torchmatch._assignment_cuda_impl`
   (requires `CUDA_HOME`).
 - `TORCHMATCH_BUILD_TRANSPORT=1` — builds `torchmatch._transport_cpu_impl`
-  (`-O3 -std=c++17 -fno-fast-math`). When combined with `BUILD_CUDA`,
+  (`-O3 -std=c++20 -fno-fast-math`). When combined with `BUILD_CUDA`,
   also builds `torchmatch._transport_cuda_impl`.
 - `TORCHMATCH_BUILD_STABLE_ABI=1` — adds `-DPy_LIMITED_API=0x030d0000
 -DTORCH_TARGET_VERSION=0x020a000000000000` to CPU extension builds and
@@ -316,7 +317,7 @@ All `.so` files land in `site-packages/torchmatch/`.
 
 ### Release pipeline (`.github/workflows/release.yml`)
 
-Per-variant wheels (`+cpu`, `+cu126`, `+cu128`, `+cu130`, `+cu132`) build in
+Per-variant wheels (`+cpu`, `+cu126`, `+cu128`, `+cu130`, `+cu132`, `+cu134`) build in
 manylinux / NVIDIA CUDA containers. `auditwheel repair` exclude list
 differs between cu12 and cu13x variants. `scripts/build_pypi_index.py`
 generates PEP 503 indexes under `docs/simple/<variant>/torchmatch/`.

@@ -7,6 +7,9 @@ from pathlib import Path
 
 from setuptools import setup
 
+# Allow building against PyTorch wheels with newer host GCC versions
+os.environ.setdefault("TORCH_DONT_CHECK_COMPILER_ABI", "1")
+
 CSRC = Path("sources/torchmatch")
 ASSIGNMENT_CUDA_CSRC = CSRC / "assignment" / "cuda"
 ASSIGNMENT_CPU_CSRC = CSRC / "assignment" / "cpu"
@@ -99,7 +102,7 @@ def _ext_modules():
                 ],
                 include_dirs=[str(ASSIGNMENT_CPU_CSRC)],
                 extra_compile_args={
-                    "cxx": ["-O3", "-std=c++17", *x86_flags, *stable_abi_flags],
+                    "cxx": ["-O3", "-std=c++20", *x86_flags, *stable_abi_flags],
                 },
                 py_limited_api=BUILD_STABLE_ABI,
             )
@@ -132,8 +135,8 @@ def _ext_modules():
                 ],
                 include_dirs=[str(ASSIGNMENT_CUDA_CSRC)],
                 extra_compile_args={
-                    "cxx": ["-O3", *torch_target_flag],
-                    "nvcc": ["-O3", "-std=c++17", *torch_target_flag],
+                    "cxx": ["-O3", "-std=c++20", *torch_target_flag],
+                    "nvcc": ["-O3", "-std=c++20", *torch_target_flag],
                 },
             )
         )
@@ -163,7 +166,7 @@ def _ext_modules():
                 # is numerically sensitive; -ffast-math can break the
                 # tie-breaking comparisons and produce wrong pivots.
                 extra_compile_args={
-                    "cxx": ["-O3", "-std=c++17", "-fno-fast-math", *stable_abi_flags],
+                    "cxx": ["-O3", "-std=c++20", "-fno-fast-math", *stable_abi_flags],
                 },
                 py_limited_api=BUILD_STABLE_ABI,
             )
@@ -178,8 +181,8 @@ def _ext_modules():
                 ],
                 include_dirs=[str(TRANSPORT_CSRC / "matrix" / "cuda")],
                 extra_compile_args={
-                    "cxx": ["-O3"],
-                    "nvcc": ["-O3", "-std=c++17"],
+                    "cxx": ["-O3", "-std=c++20"],
+                    "nvcc": ["-O3", "-std=c++20"],
                 },
             )
         )

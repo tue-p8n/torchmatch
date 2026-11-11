@@ -201,6 +201,12 @@ jobs:
             torch_spec: "torch>=2.12"
             arch_list_var: TORCH_CUDA_ARCH_LIST_CU13
             cuda_major: "13"
+          - variant: cu134
+            container: nvidia/cuda:13.4.0-cudnn-devel-ubuntu24.04
+            torch_index: cu134
+            torch_spec: "torch>=2.15"
+            arch_list_var: TORCH_CUDA_ARCH_LIST_CU13
+            cuda_major: "13"
     container:
       image: ${{ matrix.container }}
     steps:

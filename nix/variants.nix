@@ -51,6 +51,7 @@ let
                   TORCHMATCH_BUILD_CPU = "1";
                   TORCHMATCH_BUILD_CUDA = "1";
                   TORCHMATCH_BUILD_TRANSPORT = "1";
+                  TORCH_DONT_CHECK_COMPILER_ABI = "1";
                   CUDA_HOME = "${accelConfig.pkgs.cudaPackages.cudatoolkit}";
                   CUDA_PATH = "${accelConfig.pkgs.cudaPackages.cudatoolkit}";
                   TORCH_CUDA_ARCH_LIST = "8.0;8.6;8.9;9.0";
@@ -94,5 +95,9 @@ in
   cu132 = mkVariant {
     name = "torchmatch";
     accelerator = "cuda13_2";
+  };
+  cu134 = mkVariant {
+    name = "torchmatch";
+    accelerator = "cuda13_4";
   };
 }
