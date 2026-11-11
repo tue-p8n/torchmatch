@@ -76,7 +76,7 @@ jobs:
     # LibTorch ABI (TORCH_TARGET_VERSION ≥ 2.10) and Python's limited ABI
     # (Py_LIMITED_API 3.13). Works with any torch ≥ 2.10 and Python ≥ 3.13
     # without recompilation. An sdist is built alongside as a source fallback.
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     container:
       image: quay.io/pypa/manylinux_2_28_x86_64
     steps:
@@ -129,7 +129,7 @@ jobs:
           if-no-files-found: error
 
   build-cpu-wheel:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     container:
       image: quay.io/pypa/manylinux_2_28_x86_64
     steps:
@@ -172,7 +172,7 @@ jobs:
           if-no-files-found: error
 
   build-cuda-wheel:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
@@ -202,7 +202,7 @@ jobs:
             arch_list_var: TORCH_CUDA_ARCH_LIST_CU13
             cuda_major: "13"
           - variant: cu134
-            container: nvidia/cuda:13.4.0-cudnn-devel-ubuntu24.04
+            container: nvidia/cuda:13.4.3-cudnn-devel-ubuntu24.04
             torch_index: cu134
             torch_spec: "torch>=2.15"
             arch_list_var: TORCH_CUDA_ARCH_LIST_CU13
@@ -280,7 +280,7 @@ jobs:
 
   publish-release:
     needs: [build-pypi-wheel, build-cpu-wheel, build-cuda-wheel]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
         with:
@@ -307,7 +307,7 @@ jobs:
 
   publish-pypi:
     needs: publish-release
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     environment: pypi
     permissions:
       id-token: write
@@ -329,7 +329,7 @@ jobs:
 
   update-index:
     needs: publish-release
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
         with:
